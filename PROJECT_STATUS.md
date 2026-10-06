@@ -5,7 +5,7 @@
 ## 现状（2026-10-06）
 
 - 第一版已完成：换算（25 个单位 × 7 种物质）、图鉴（17 件物品）、口诀（5 条）。
-- 测试：`node --test tests/` 共 9 组；`tests/ui.verify.cjs` 共 228 项（3 种宽度 × 浅色/深色）。两套测试都做过变异测试。
+- 测试：`node --test tests/` 共 9 组；`tests/ui.verify.cjs` 共 240 项（3 种宽度 × 浅色/深色，含下拉刷新）；测线上站：`WV_PROXY=<代理> WV_URL=<线上地址> node tests/ui.verify.cjs`。两套测试都做过变异测试。
 - 部署：GitHub Pages（main 分支根目录）。push 之后要打开线上地址核对一次。
 
 ## 改之前必须知道的
