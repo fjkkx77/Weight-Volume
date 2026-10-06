@@ -145,6 +145,27 @@ async function run(W, H, dark) {
     await c.ev(`document.getElementById('btnReset').click()`);
     ok(`${tag} 归零清空`, (await val(c, 'g')) === '' && (await c.ev(`document.querySelectorAll('.chip').length`)) === 0);
 
+    // 下拉刷新：先测「输入框聚焦时不接管」（会清掉刚输的数），再测正常下拉真的刷新
+    const pull = async () => {
+      const steps = [10, 40, 80, 130, 180, 240, 300];
+      await c.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: W / 2, y: 200 }] });
+      for (const d of steps) { await c.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: W / 2, y: 200 + d }] }); await sleep(16); }
+      await c.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
+    await c.ev(`scrollTo(0,0); window.__alive = 1`);
+    await c.ev(`document.getElementById('u_jin').focus({preventScroll:true}); scrollTo(0,0)`);
+    await sleep(100);
+    await pull();
+    await sleep(600);
+    ok(`${tag} 输入中下拉不刷新`, (await c.ev(`window.__alive === 1 && !document.getElementById('ptr-indicator').classList.contains('ptr-loading')`)) === true);
+    await c.ev(`document.activeElement.blur(); scrollTo(0,0)`);
+    await sleep(100);
+    await pull();
+    await sleep(1500);
+    let reloaded = false;
+    for (let i = 0; i < 30 && !reloaded; i++) { try { reloaded = (await c.ev(`window.__alive === undefined && document.readyState === 'complete'`)) === true; } catch (e) {} if (!reloaded) await sleep(200); }
+    ok(`${tag} 正常下拉触发刷新`, reloaded);
+
     ok(`${tag} 无 JS 报错`, c.errors.length === 0, c.errors);
   } finally {
     c.close();
