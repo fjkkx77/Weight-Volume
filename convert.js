@@ -33,12 +33,15 @@
     return out;
   }
 
-  // 显示用：最多 9 位有效数字，去掉浮点尾巴；不用科学计数法
+  // 显示用：6 位有效数字（手机一行放得下、生活里够用），但整数部分不截断；去掉浮点尾巴；不用科学计数法
+  //   最初给的是 9 位，截图里「33.3333333 茶匙」「2.11337642 杯」又长又没用，2026-10-06 收到 6 位
+  var SIG = 6;
   function formatNumber(x) {
     if (x === 0) return '0';
     if (!isFinite(x)) return '';
     if (Math.abs(x) < 1e-6) return '≈0';
-    var n = Number(x.toPrecision(9));
+    var intDigits = Math.abs(x) >= 1 ? Math.floor(Math.log10(Math.abs(x))) + 1 : 1;
+    var n = Number(x.toPrecision(Math.min(21, Math.max(SIG, intDigits))));
     var s = String(n);
     if (/e/i.test(s)) s = n.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 9 });
     return s;

@@ -100,7 +100,7 @@
     { id: 'cola', emoji: '🥤', name: '一罐可乐', unit: '罐', kind: 'volume', value: 330, level: 'label', linkable: true, source: SRC.pack },
     { id: 'bottle', emoji: '🧴', name: '一瓶矿泉水', unit: '瓶', kind: 'volume', value: 550, level: 'label', linkable: true, source: SRC.pack },
     { id: 'oilbucket', emoji: '🛢️', name: '一桶食用油', unit: '桶', kind: 'volume', value: 5000, level: 'label', linkable: true, source: SRC.pack },
-    { id: 'waterjug', emoji: '🚰', name: '一桶桶装水', unit: '桶', kind: 'volume', value: 18900, level: 'label', linkable: true, source: SRC.pack + '（18.9 升）' }
+    { id: 'waterjug', emoji: '🚰', name: '一桶桶装水', unit: '桶', kind: 'volume', value: 18900, level: 'label', linkable: true, source: SRC.pack }
   ];
 
   var tips = [

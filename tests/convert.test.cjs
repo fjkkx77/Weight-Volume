@@ -73,7 +73,9 @@ test('斤两组合写法', () => {
 
 test('数字显示不带浮点尾巴', () => {
   assert.equal(C.formatNumber(0.1 + 0.2), '0.3');
-  assert.equal(C.formatNumber(1234567.891), '1234567.89');
+  assert.equal(C.formatNumber(1234567.891), '1234568', '整数部分不截断');
+  assert.equal(C.formatNumber(100 / 3), '33.3333', '最多 6 位有效数字');
+  assert.equal(C.formatNumber(0.000123456789), '0.000123457');
   assert.equal(C.formatNumber(0), '0');
   assert.equal(C.formatNumber(1e-9), '≈0');
   assert.ok(!/e/i.test(C.formatNumber(123456789012)), '大数不用科学计数法');

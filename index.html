@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="description" content="斤、两、克、毫升、杯、磅等重量与容量单位换算，并用鸡蛋、矿泉水等生活物品帮你记住它们有多重">
+<title>斤两换算</title>
+<style>
+  /* 配色 token 照搬 data-Calculation，两站观感一致 */
+  :root {
+    --bg: #F2F2F7;
+    --card-bg: #FFFFFF;
+    --text-main: #000000;
+    /* 要读的次要文字不用系统灰 #8E8E93（白底只有 3.23:1），用 #6E6E73（5.03:1） */
+    --text-2: #6E6E73;
+    --accent: #007AFF;
+    --accent-rgb: 0, 122, 255;
+    --nav-idle: #636368;
+    --row-line: rgba(60, 60, 67, 0.18);
+    --press: rgba(0, 0, 0, 0.06);
+    --shadow: rgba(0, 0, 0, 0.06);
+    --warn: #B25000;
+    --warn-bg: rgba(255, 149, 0, 0.14);
+    --badge-bg: rgba(0, 122, 255, 0.10);
+    --badge-fg: #0056B3;
+    --flash: rgba(0, 122, 255, 0.16);
+    --invalid: #D70015;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --card-bg: #1C1C1E;
+      --text-main: #FFFFFF;
+      --text-2: #AEAEB2;
+      --accent: #0A84FF;
+      --accent-rgb: 10, 132, 255;
+      --nav-idle: #B8B8BE;
+      --row-line: rgba(84, 84, 88, 0.6);
+      --press: rgba(255, 255, 255, 0.10);
+      --shadow: rgba(0, 0, 0, 0.3);
+      --warn: #FFB340;
+      --warn-bg: rgba(255, 159, 10, 0.16);
+      --badge-bg: rgba(10, 132, 255, 0.18);
+      --badge-fg: #8CC2FF;
+      --flash: rgba(10, 132, 255, 0.28);
+      --invalid: #FF6961;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { overscroll-behavior-y: contain; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text-main);
+    font-size: 16px; line-height: 1.45;
+    padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    -webkit-text-size-adjust: 100%;
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+  .container { width: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+  header h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; text-align: center; }
+  header p { text-align: center; color: var(--text-2); font-size: 15px; margin-top: 2px; }
+
+  /* 吸顶模块导航：照搬 data-Calculation 模块六（白底 + 蓝色实心药丸，不用半透明毛玻璃） */
+  .section-nav { position: sticky; top: calc(8px + env(safe-area-inset-top)); z-index: 90;
+    display: flex; gap: 4px; padding: 4px; border-radius: 14px;
+    background: var(--card-bg); box-shadow: 0 8px 24px var(--shadow); }
+  .nav-item { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: var(--nav-idle);
+    font-size: 15px; font-weight: 600; border-radius: 10px; cursor: pointer;
+    transition: background-color .25s, color .25s; }
+  .nav-item[aria-current="true"] { background: var(--accent); color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb), .35); }
+  .nav-item:not([aria-current="true"]):active { background: var(--press); }
+
+  .card { background: var(--card-bg); border-radius: 20px; padding: 20px 16px;
+    box-shadow: 0 8px 24px var(--shadow); scroll-margin-top: var(--nav-offset, 72px); }
+  .section-header { display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; }
+  .section-title { font-size: clamp(17px, 4.6vw, 19px); font-weight: 800; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .section-title::before { content: ""; width: 4px; height: 1.05em; border-radius: 2px; flex: none;
+    background: linear-gradient(180deg, var(--accent), #5E5CE6); }
+  .btn-reset { min-height: 44px; padding: 0 14px; border: none; border-radius: 12px;
+    background: rgba(142, 142, 147, .15); color: var(--accent); font-size: 15px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .btn-reset:active { background: rgba(142, 142, 147, .28); }
+
+  .label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 8px; }
+
+  /* 物质选择：4 列网格自然折行，不做横向滚动 */
+  .subs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .sub-btn { min-height: 56px; border: none; border-radius: 12px; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 2px;
+    transition: background-color .2s, color .2s, transform .15s; }
+  .sub-btn .em { font-size: 20px; line-height: 1.1; }
+  .sub-btn:active { transform: scale(.96); }
+  .sub-btn[aria-pressed="true"] { background: var(--accent); color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb), .3); }
+  .density { font-size: 14px; color: var(--text-2); margin-top: 10px; }
+  .density b { color: var(--text-main); font-weight: 600; }
+  .warn { margin-top: 8px; font-size: 14px; color: var(--warn); background: var(--warn-bg);
+    border-radius: 10px; padding: 8px 10px; }
+
+  /* 结果摘要：这一屏的主角 */
+  .summary { margin-top: 16px; border-radius: 16px; padding: 14px;
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), .10), rgba(94, 92, 230, .10)); }
+  .summary-main { font-size: clamp(22px, 7vw, 28px); font-weight: 800; letter-spacing: -0.01em;
+    font-variant-numeric: proportional-nums; overflow-wrap: anywhere; }
+  .summary-sub { font-size: 15px; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
+  .summary-hint { font-size: 15px; color: var(--text-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { min-height: 44px; border: none; border-radius: 22px; padding: 0 14px;
+    background: var(--card-bg); box-shadow: 0 2px 8px var(--shadow);
+    font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    max-width: 100%; }
+  .chip:active { transform: scale(.97); }
+
+  /* 单位列表：iOS「inset grouped」样式——左名称、右数值，行间细线 */
+  .groups { margin-top: 18px; display: flex; flex-direction: column; gap: 18px; }
+  .group-title { font-size: 13px; font-weight: 600; color: var(--text-2); padding: 0 4px 6px; }
+  .rows { background: var(--bg); border-radius: 14px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 12px;
+    position: relative; transition: background-color .4s; }
+  .row + .row::before { content: ""; position: absolute; top: 0; left: 12px; right: 0;
+    height: 1px; transform: scaleY(.5); transform-origin: top; background: var(--row-line); }
+  .row label { flex: 0 1 auto; min-width: 0; font-size: 16px; font-weight: 600; cursor: text; }
+  .row label small { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); line-height: 1.2; }
+  .row input { flex: 1 1 0; min-width: 0; width: 100%; border: none; background: transparent;
+    text-align: right; font-size: 17px; font-weight: 500; color: var(--text-main);
+    font-family: inherit; font-variant-numeric: tabular-nums; padding: 13px 0; outline: none; }
+  .row input::placeholder { color: var(--text-2); opacity: .55; }
+  .row:focus-within { background: rgba(var(--accent-rgb), .08); }
+  .row.invalid input { color: var(--invalid); }
+  .row.flash { background: var(--flash); }
+  .group-foot { font-size: 13px; color: var(--text-2); padding: 6px 4px 0; overflow-wrap: anywhere; }
+  .group-foot b { color: var(--text-main); font-weight: 600; }
+
+  /* 分段控件（图鉴：重量 / 容量） */
+  .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--bg); margin-bottom: 12px; }
+  .seg button { flex: 1; min-height: 44px; border: none; border-radius: 10px; background: transparent;
+    color: var(--nav-idle); font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color .2s, color .2s; }
+  .seg button[aria-selected="true"] { background: var(--card-bg); color: var(--text-main); box-shadow: 0 2px 8px var(--shadow); }
+
+  .items { background: var(--bg); border-radius: 14px; overflow: hidden; }
+  .item { width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;
+    display: flex; gap: 12px; align-items: flex-start; padding: 12px; position: relative;
+    transition: background-color .4s; }
+  .item + .item::before { content: ""; position: absolute; top: 0; left: 60px; right: 0;
+    height: 1px; transform: scaleY(.5); transform-origin: top; background: var(--row-line); }
+  .item:active { background: var(--press); }
+  .item.flash { background: var(--flash); }
+  .item .em { font-size: 30px; line-height: 1; width: 36px; text-align: center; flex: none; padding-top: 2px; }
+  .item .body { flex: 1; min-width: 0; }
+  .item .name { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 6px;
+    background: var(--badge-bg); color: var(--badge-fg); }
+  .badge.est { background: var(--warn-bg); color: var(--warn); }
+  .item .val { font-size: 15px; margin-top: 2px; }
+  .item .val b { font-weight: 700; }
+  .item .src { font-size: 13px; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
+  .item .go { flex: none; align-self: center; color: var(--text-2); font-size: 20px; }
+
+  .tips { display: flex; flex-direction: column; gap: 10px; }
+  .tips details { background: var(--bg); border-radius: 14px; }
+  .tips summary { list-style: none; cursor: pointer; min-height: 48px; padding: 12px 40px 12px 14px;
+    font-size: 16px; font-weight: 700; position: relative; }
+  .tips summary::-webkit-details-marker { display: none; }
+  .tips summary::after { content: ""; position: absolute; right: 18px; top: 50%; width: 8px; height: 8px;
+    border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2);
+    transform: translateY(-70%) rotate(45deg); transition: transform .2s; }
+  .tips details[open] summary::after { transform: translateY(-20%) rotate(-135deg); }
+  .tips .tip-body { padding: 0 14px 12px; font-size: 15px; }
+  .tips .tip-src { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+
+  footer { font-size: 13px; color: var(--text-2); text-align: center; padding: 4px 8px; }
+
+  @media (hover: hover) {
+    .sub-btn:not([aria-pressed="true"]):hover, .chip:hover, .item:hover { background-color: var(--press); }
+    .chip:hover { background-color: var(--card-bg); filter: brightness(.97); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  /* ======== 下拉刷新组件 CSS：原样拷自 references/组件_下拉刷新（v1.7）======== */
+  #ptr-indicator { position: fixed; top: calc(-44px + env(safe-area-inset-top, 0px)); left: 50%; margin-left: -18px;
+    width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 14px rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center;
+    color: #2563eb; opacity: 0; pointer-events: none; z-index: 350; }
+  #ptr-indicator.ptr-animate { transition: transform .25s ease, opacity .25s ease; }
+  #ptr-indicator svg { width: 20px; height: 20px; }
+  #ptr-indicator .ptr-arrow { transition: transform .2s ease; }
+  #ptr-indicator.ptr-ready .ptr-arrow { transform: rotate(180deg); }
+  #ptr-indicator .ptr-spinner { display: none; }
+  #ptr-indicator.ptr-loading .ptr-arrow { display: none; }
+  #ptr-indicator.ptr-loading .ptr-spinner { display: block; animation: ptr-spin .8s linear infinite; }
+  @keyframes ptr-spin { to { transform: rotate(360deg); } }
+  #ptr-tip { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%) translateY(20px); width: max-content; max-width: min(420px, calc(100vw - 2rem));
+    background: #1f2937; color: #fff; border-radius: 12px; padding: .85rem 1.1rem; font-size: .9rem; line-height: 1.5;
+    z-index: 400; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  #ptr-tip.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>斤两换算</h1>
+    <p>重量 · 容量 · 生活里的参照物</p>
+  </header>
+
+  <nav class="section-nav" id="sectionNav" aria-label="模块导航">
+    <button type="button" class="nav-item" data-target="cardConvert">换算</button>
+    <button type="button" class="nav-item" data-target="cardItems">图鉴</button>
+    <button type="button" class="nav-item" data-target="cardTips">口诀</button>
+  </nav>
+
+  <section class="card" id="cardConvert" aria-labelledby="ttlConvert">
+    <div class="section-header">
+      <h2 class="section-title" id="ttlConvert">换算</h2>
+      <button type="button" class="btn-reset" id="btnReset">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+        归零
+      </button>
+    </div>
+
+    <div class="label" id="subsLabel">按什么东西换算重量 ⇄ 容量</div>
+    <div class="subs" id="subs" role="group" aria-labelledby="subsLabel"></div>
+    <div class="density" id="density"></div>
+    <div class="warn" id="warn" hidden></div>
+
+    <div class="summary" id="summary" aria-live="polite"></div>
+
+    <div class="groups" id="groups"></div>
+  </section>
+
+  <section class="card" id="cardItems" aria-labelledby="ttlItems">
+    <div class="section-header">
+      <h2 class="section-title" id="ttlItems">生活参照图鉴</h2>
+    </div>
+    <div class="seg" role="tablist" aria-label="物品类别">
+      <button type="button" role="tab" id="tabMass" data-kind="mass" aria-selected="true">按重量</button>
+      <button type="button" role="tab" id="tabVolume" data-kind="volume" aria-selected="false">按容量</button>
+    </div>
+    <div class="items" id="items" role="list"></div>
+  </section>
+
+  <section class="card" id="cardTips" aria-labelledby="ttlTips">
+    <div class="section-header">
+      <h2 class="section-title" id="ttlTips">记忆口诀</h2>
+    </div>
+    <div class="tips" id="tips"></div>
+  </section>
+
+  <footer>
+    单位换算数值核实于 2026-10-06，每一条都标了出处。<br>
+    物品重量是典型值，标「经验值」的没有查到权威数据，仅供建立量感。
+  </footer>
+</div>
+
+<div id="ptr-indicator" aria-hidden="true">
+  <svg class="ptr-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+  <svg class="ptr-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+</div>
+<div id="ptr-tip" hidden></div>
+
+<script src="data.js"></script>
+<script src="convert.js"></script>
+<script src="pull-to-refresh.js"></script>
+<script>
+(function () {
+  'use strict';
+  var D = window.WV_DATA, C = window.WV;
+  var $ = function (id) { return document.getElementById(id); };
+
+  // 当前状态：哪一格是用户输入的（源），输入了什么数，按什么物质换算
+  var state = { unitId: null, value: null, substanceId: D.substances[0].id };
+  var inputs = {};   // unitId -> <input>
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function sub() { return C.subById[state.substanceId]; }
+  function fmtRange(r, unit) { return r ? C.formatNumber(r[0]) + '–' + C.formatNumber(r[1]) + ' ' + unit : ''; }
+
+  // ---------- 物质选择 ----------
+  function renderSubs() {
+    $('subs').innerHTML = D.substances.map(function (s) {
+      return '<button type="button" class="sub-btn" data-id="' + s.id + '" aria-pressed="' + (s.id === state.substanceId) + '">' +
+        '<span class="em" aria-hidden="true">' + s.emoji + '</span><span>' + esc(s.name) + '</span></button>';
+    }).join('');
+    var s = sub();
+    $('density').innerHTML = '1 毫升' + esc(s.name) + ' ≈ <b>' + C.formatNumber(s.density) + ' 克</b>' +
+      (s.range ? '（' + fmtRange(s.range, '').trim() + '）' : '') + ' · 数据：FAO';
+    $('warn').hidden = !s.granular;
+    if (s.granular) $('warn').textContent = s.name + '是粉粒状的，装得松还是压得紧，同一杯能差两三成，重量 ⇄ 容量的结果只能当个大概。';
+  }
+  $('subs').addEventListener('click', function (e) {
+    var b = e.target.closest('.sub-btn');
+    if (!b) return;
+    state.substanceId = b.dataset.id;
+    renderSubs();
+    recompute();
+  });
+
+  // ---------- 单位列表 ----------
+  function renderGroups() {
+    $('groups').innerHTML = D.groups.map(function (g) {
+      var rows = D.units.filter(function (u) { return u.group === g.id; }).map(function (u) {
+        var id = 'u_' + u.id;
+        return '<div class="row" data-unit="' + u.id + '">' +
+          '<label for="' + id + '">' + esc(u.name) + (u.note ? '<small>' + esc(u.note) + '</small>' : '') + '</label>' +
+          '<input id="' + id + '" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" ' +
+          'spellcheck="false" placeholder="0" data-unit="' + u.id + '">' +
+          '</div>';
+      }).join('');
+      return '<div class="group" data-group="' + g.id + '">' +
+        '<div class="group-title">' + esc(g.name) + '</div>' +
+        '<div class="rows">' + rows + '</div>' +
+        '<div class="group-foot" data-foot="' + g.id + '" hidden></div></div>';
+    }).join('');
+    D.units.forEach(function (u) { inputs[u.id] = $('u_' + u.id); });
+  }
+
+  $('groups').addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el.dataset.unit) return;
+    var v = C.parseInput(el.value);
+    var row = el.closest('.row');
+    if (el.value.trim() === '') { row.classList.remove('invalid'); setSource(null, null); return; }
+    if (v === null) { row.classList.add('invalid'); return; }   // 打到一半的非法输入：只标红，不动别的格子
+    row.classList.remove('invalid');
+    setSource(el.dataset.unit, v);
+  });
+  // 点进一格就全选：接着打字是替换而不是往旧数字后面追加（iOS 真机行为未验证）
+  $('groups').addEventListener('focusin', function (e) {
+    var el = e.target;
+    if (!el.dataset.unit || !el.value) return;
+    requestAnimationFrame(function () { try { el.setSelectionRange(0, el.value.length); } catch (err) {} });
+  });
+  $('groups').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.dataset.unit) e.target.blur();
+  });
+
+  function setSource(unitId, value) {
+    state.unitId = unitId; state.value = value;
+    recompute();
+  }
+
+  function recompute() {
+    var has = state.unitId !== null && state.value !== null;
+    var r = has ? C.convertAll(state.value, state.unitId, state.substanceId) : null;
+    var srcKind = has ? C.unitById[state.unitId].kind : null;
+
+    D.units.forEach(function (u) {
+      var el = inputs[u.id];
+      if (u.id === state.unitId) return;                  // 正在编辑的那格保留用户的原文
+      el.value = has ? C.formatNumber(r[u.id]) : '';
+      el.closest('.row').classList.remove('invalid');
+    });
+
+    // 组脚注：市制/旧制给组合写法；跨类且粉粒状时提示「约」
+    D.groups.forEach(function (g) {
+      var foot = document.querySelector('[data-foot="' + g.id + '"]');
+      var html = '';
+      if (has && g.id === 'shi') {
+        var c = C.formatComposite(r.g, 'jin');
+        if (c) html = '合起来是 <b>' + c + '</b>';
+      } else if (has && g.id === 'old') {
+        var c2 = C.formatComposite(r.g, 'jin_old');
+        if (c2) html = '旧制合起来是 <b>' + c2 + '</b>（一斤十六两）';
+      }
+      var gKind = D.units.filter(function (u) { return u.group === g.id; })[0].kind;
+      if (has && r.approx && gKind !== srcKind) {
+        html += (html ? '<br>' : '') + '按' + esc(sub().name) + '的平均密度估算，只能当个大概';
+      }
+      foot.innerHTML = html;
+      foot.hidden = !html;
+    });
+
+    renderSummary(has ? r : null);
+  }
+
+  // ---------- 结果摘要 + 物品联动 ----------
+  // 「一罐可乐」数个数时要去掉「一罐」，否则会读成「1.5 罐一罐可乐」
+  function countName(it) { return it.name.indexOf('一' + it.unit) === 0 ? it.name.slice(1 + it.unit.length) : it.name; }
+  function ratioText(s) {
+    var it = s.item, n, noun = countName(it);
+    if (/^\d/.test(noun)) noun = ' ' + noun;   // 「8 枚 1 元硬币」，别粘成「8 枚1 元硬币」
+    if (s.exactish && s.rounded === 0.5) return '半' + it.unit + noun;
+    if (s.exactish) n = C.formatNumber(s.rounded);
+    else n = s.ratio >= 10 ? String(Math.round(s.ratio)) : C.formatNumber(Math.round(s.ratio * 10) / 10);
+    return n + ' ' + it.unit + noun;
+  }
+  function renderSummary(r) {
+    var box = $('summary');
+    if (!r) {
+      box.innerHTML = '<div class="summary-hint">在下面任意一格输入数字，其余单位会跟着算出来，这里会告诉你它大概相当于什么。</div>';
+      return;
+    }
+    var comp = C.formatComposite(r.g, 'jin');
+    var main = comp || (C.formatNumber(r.g) + ' 克');
+    var subline = C.formatNumber(r.g) + ' 克 · ' + C.formatNumber(r.ml) + ' 毫升' + (r.approx ? '（约）' : '');
+    var sug = C.suggestItems({ g: r.g, ml: r.ml });
+    var chips = sug.map(function (s) {
+      return '<button type="button" class="chip" data-item="' + s.item.id + '">' +
+        '<span aria-hidden="true">' + s.item.emoji + '</span>≈ ' + esc(ratioText(s)) + '</button>';
+    }).join('');
+    box.innerHTML = '<div class="summary-main">' + esc(main) + '</div>' +
+      '<div class="summary-sub">' + esc(subline) + '</div>' +
+      (chips ? '<div class="chips">' + chips + '</div>' : '');
+  }
+  $('summary').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    var it = D.items.filter(function (x) { return x.id === b.dataset.item; })[0];
+    selectTab(it.kind);
+    var row = document.querySelector('.item[data-item="' + it.id + '"]');
+    scrollToEl(row, 'center');
+    flash(row);
+  });
+
+  // ---------- 图鉴 ----------
+  var tabKind = 'mass';
+  function describe(it) {
+    var unit = it.kind === 'mass' ? '克' : '毫升';
+    var v = '约 <b>' + C.formatNumber(it.value) + ' ' + unit + '</b>' +
+      (it.range ? '（' + fmtRange(it.range, unit) + '）' : '');
+    var alt = it.kind === 'mass'
+      ? (it.value >= 25 ? C.formatComposite(it.value, 'jin') : C.formatNumber(it.value / 5) + '钱')
+      : (it.value >= 1000 ? C.formatNumber(it.value / 1000) + ' 升' : '');
+    return v + (alt ? ' ≈ ' + esc(alt) : '');
+  }
+  // 标签已经说了「包装规格 / 经验值」，出处行只留标签之外的信息
+  function srcNote(it) {
+    if (it.level === 'label') { var m = it.source.match(/）（(.*)）$/); return m ? m[1] : ''; }   // 「…（以包装标注为准）（18.9 升）」只留后一个括号
+    if (it.level === 'estimate') return it.source.replace(/^经验值（?/, '').replace(/）$/, '');
+    return it.source;
+  }
+  function renderItems() {
+    var list = D.items.filter(function (it) { return it.kind === tabKind; })
+      .slice().sort(function (a, b) { return a.value - b.value; });
+    $('items').innerHTML = list.map(function (it) {
+      var est = it.level === 'estimate';
+      return '<button type="button" class="item" role="listitem" data-item="' + it.id + '" aria-label="' +
+        esc(it.name + '，填入换算') + '">' +
+        '<span class="em" aria-hidden="true">' + it.emoji + '</span>' +
+        '<span class="body"><span class="name">' + esc(it.name) +
+        '<span class="badge' + (est ? ' est' : '') + '">' + esc(D.levels[it.level]) + '</span></span>' +
+        '<span class="val" style="display:block">' + describe(it) + '</span>' +
+        (srcNote(it) ? '<span class="src" style="display:block">' + esc(srcNote(it)) + '</span>' : '') + '</span>' +
+        '<span class="go" aria-hidden="true">›</span></button>';
+    }).join('');
+  }
+  function selectTab(kind) {
+    tabKind = kind;
+    $('tabMass').setAttribute('aria-selected', String(kind === 'mass'));
+    $('tabVolume').setAttribute('aria-selected', String(kind === 'volume'));
+    renderItems();
+  }
+  document.querySelector('.seg').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-kind]');
+    if (b) selectTab(b.dataset.kind);
+  });
+  $('items').addEventListener('click', function (e) {
+    var b = e.target.closest('.item');
+    if (!b) return;
+    var it = D.items.filter(function (x) { return x.id === b.dataset.item; })[0];
+    var unitId = it.kind === 'mass' ? 'g' : 'ml';
+    inputs[unitId].value = C.formatNumber(it.value);
+    setSource(unitId, it.value);
+    scrollToEl($('cardConvert'), 'start');
+    flash(inputs[unitId].closest('.row'));
+  });
+
+  // ---------- 口诀 ----------
+  function renderTips() {
+    $('tips').innerHTML = D.tips.map(function (t) {
+      return '<details><summary>' + esc(t.text) + '</summary><div class="tip-body">' + esc(t.detail) +
+        '<div class="tip-src">出处：' + esc(t.source) + '</div></div></details>';
+    }).join('');
+  }
+
+  // ---------- 通用 ----------
+  function reduced() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  function scrollToEl(el, block) { if (el) el.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: block }); }
+  function flash(el) {
+    if (!el) return;
+    el.classList.add('flash');
+    setTimeout(function () { el.classList.remove('flash'); }, 900);
+  }
+
+  $('btnReset').addEventListener('click', function () {
+    D.units.forEach(function (u) { inputs[u.id].value = ''; inputs[u.id].closest('.row').classList.remove('invalid'); });
+    setSource(null, null);
+  });
+
+  // 吸顶导航：照搬 data-Calculation 模块六
+  function setupSectionNav() {
+    var nav = $('sectionNav');
+    var items = Array.prototype.slice.call(nav.querySelectorAll('.nav-item'));
+    var cards = items.map(function (b) { return $(b.dataset.target); });
+    function syncOffset() {
+      document.documentElement.style.setProperty('--nav-offset', (nav.getBoundingClientRect().height + 16) + 'px');
+    }
+    syncOffset();
+    window.addEventListener('resize', syncOffset);
+    function mark(el) { items.forEach(function (b, i) { b.setAttribute('aria-current', cards[i] === el ? 'true' : 'false'); }); }
+    mark(cards[0]);
+    nav.addEventListener('click', function (e) {
+      var b = e.target.closest('.nav-item');
+      if (b) scrollToEl($(b.dataset.target), 'start');
+    });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) mark(e.target); });
+    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+    cards.forEach(function (c) { io.observe(c); });
+  }
+
+  renderSubs();
+  renderGroups();
+  renderItems();
+  renderTips();
+  recompute();
+  setupSectionNav();
+  // 正在输入时不接管下拉：刷新会把刚输入的数清掉
+  window.PullToRefresh.setupPullToRefresh({
+    isBlocked: function () { var a = document.activeElement; return !!a && a.tagName === 'INPUT'; }
+  });
+})();
+</script>
+</body>
+</html>
