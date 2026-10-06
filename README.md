@@ -1,0 +1,44 @@
+# 斤两换算（Weight-Volume）
+
+斤、两、克、毫升、杯、磅等重量与容量单位的换算。可以按物质（水、牛奶、面粉……）在重量和容量之间互换，并把结果翻译成生活物品，例如「≈ 1 个鸡蛋」「≈ 1 瓶矿泉水」。
+
+在线地址：<https://fjkkx77.github.io/Weight-Volume/>
+灵感来源：[data-Calculation](https://fjkkx77.github.io/data-Calculation/)
+
+## 文件
+
+| 文件 | 作用 |
+|---|---|
+| `index.html` | 界面（样式与交互都在这里） |
+| `data.js` | 只放数据：单位、物质密度、物品、口诀，**每条都带出处和可信度** |
+| `convert.js` | 只放计算：浏览器和 node 共用，不碰页面 |
+| `pull-to-refresh.js` | 下拉刷新组件，原样复用，参数不要改 |
+| `tests/convert.test.cjs` | 计算与数据完整性测试 |
+| `tests/ui.verify.cjs` | 真实手机视口测试（320 / 390 / 430 宽，浅色 / 深色） |
+
+零外部依赖，直接双击 `index.html` 也能用。
+
+## 跑测试
+
+```bash
+node --test tests/                       # 计算 + 数据（没写出处的数据会被拦下）
+# 页面测试要先起一个本地服务，脚手架在 memory/references/组件_浏览器验证脚手架/
+node <脚手架>/mock.js . 18831 &
+node tests/ui.verify.cjs [截图目录]
+```
+
+## 数据出处（2026-10-06 核实）
+
+| 内容 | 出处 |
+|---|---|
+| 市斤 = 500 克、旧制一斤十六两 | 1929《度量衡法》第五、六条（[维基文库](https://zh.wikisource.org/wiki/度量衡法_(民國18年))） |
+| 一斤改为十两 | 1959 国务院《关于统一我国计量制度的命令》（[维基文库](https://zh.wikisource.org/wiki/国务院关于统一我国计量制度的命令)） |
+| 磅、盎司、美制杯 / 液量盎司 / 加仑、英制加仑 | [NIST SP 811 附录 B.9](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9) |
+| 港斤 604.78982 克 | 香港《度量衡条例》第 68 章 |
+| 台斤 600 克 | 台湾市场通行值（第三方资料，**未取得官方条文**，可信度中） |
+| 各种物质的密度 | FAO/INFOODS Density Database v2.0 |
+| 乒乓球 2.7 克 | 国际乒联规则 2.3.3 |
+| 鸡蛋分级 | SB/T 10638-2011（转引自团体标准文本） |
+| 公制茶匙 / 汤匙 / 杯 | 国际通行值；**未查到中国统一的量具国家标准** |
+
+标「经验值」的物品没有查到权威数据，只用来建立量感。
