@@ -5,6 +5,13 @@ const path = require('path');
 const fs = require('fs');
 const SCAFFOLD = path.join(process.env.USERPROFILE || 'C:/Users/Administrator',
   '.claude/projects/C--Users-Administrator/memory/references/组件_浏览器验证脚手架/cdp.js');
+// 测线上站时 headless Chrome 不会自动走系统代理（直连 github.io 会超时）：
+// 设了 WV_PROXY 就给脚手架起的 Chrome 补一个 --proxy-server，共用脚手架本身不改
+if (process.env.WV_PROXY) {
+  const cp = require('child_process');
+  const spawn0 = cp.spawn;
+  cp.spawn = (cmd, args, opts) => spawn0(cmd, /chrome/i.test(cmd) ? [...args, '--proxy-server=' + process.env.WV_PROXY] : args, opts);
+}
 const { open, sleep } = require(SCAFFOLD);
 
 const URL = process.env.WV_URL || 'http://127.0.0.1:18831/';
