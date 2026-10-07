@@ -227,6 +227,19 @@
     }
     return false;
   }
+  // 同一行三格统一字号：取这一行里最小的那个（用户有强迫症，一行里大小不一很扎眼）。
+  // 收起状态的格子宽 0、量不准，跳过；展开时 setMore 会 recompute 再对一次
+  function alignRows() {
+    document.querySelectorAll('.grid').forEach(function (grid) {
+      if (!grid.offsetWidth) return;
+      var cells = grid.children;
+      for (var i = 0; i < cells.length; i += 3) {
+        var row = [cells[i], cells[i + 1], cells[i + 2]].map(function (c) { return c.querySelector('input'); });
+        var min = Math.min.apply(null, row.map(function (el) { return parseFloat(el.style.fontSize) || SIZES[0]; }));
+        row.forEach(function (el) { el.style.fontSize = min + 'px'; });
+      }
+    });
+  }
   function show(el, x) {
     if (x === null) { el.value = ''; el.style.fontSize = ''; return; }
     for (var i = 0; i < SIGS.length; i++) {
@@ -251,6 +264,7 @@
       var c = has ? C.formatComposite(r.g, g.composite) : '';
       document.querySelector('[data-comp="' + g.id + '"]').textContent = c ? (g.composite === 'jin_old' ? '旧制 ' + c : c) : '';
     });
+    alignRows();
     var refer = $('refer');
     if (!has) { refer.textContent = '在任意一格输入数字，其余单位自动算出'; return; }
     var sug = C.suggestItems({ g: r.g, ml: r.ml }).map(function (s) { return '<b>' + esc(C.suggestionText(s)) + '</b>'; });

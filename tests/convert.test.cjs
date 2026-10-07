@@ -44,8 +44,12 @@ test('新增单位的定义关系（57 个单位扩充）', () => {
   eq(1, 'ft3', 1728, 'in3'); assert.ok(close(C.toBase(1, 'in3'), 2.54 ** 3));
   eq(1, 'floz_us', 6, 'tsp_us'); eq(1, 'tbsp_us', 3, 'tsp_us'); eq(1, 'cup_us', 16, 'tbsp_us');
   eq(1, 'tbsp_m', 3, 'tsp_m');
-  // 港台
-  eq(1, 'jin_tw', 16, 'liang_tw'); eq(1, 'jin_hk', 16, 'liang_hk'); eq(1, 'liang_old', 10, 'qian_old');
+  // 港台·旧制：斤 = 16 两，两 = 10 钱；旧制斤与市斤同重
+  eq(1, 'jin_tw', 16, 'liang_tw'); eq(1, 'jin_hk', 16, 'liang_hk'); eq(1, 'jin_old', 16, 'liang_old');
+  eq(1, 'liang_tw', 10, 'qian_tw'); eq(1, 'liang_hk', 10, 'qian_hk'); eq(1, 'liang_old', 10, 'qian_old');
+  eq(1, 'jin_old', 1, 'jin');
+  // 为排满补的英美容量
+  eq(1, 'bbl', 42, 'gal_us'); eq(1, 'gal_uk', 4, 'qt_uk'); eq(1, 'qt_uk', 2, 'pt_uk'); eq(1, 'yd3', 27, 'ft3');
   // 精确值本身
   assert.equal(C.toBase(1, 'gr'), 0.06479891);
   assert.equal(C.toBase(1, 'ct'), 0.2);
@@ -72,18 +76,25 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
     assert.ok(u.label && u.label.trim(), `${u.id} 缺显示名`);
     assert.ok(D.groups.some(g => g.id === u.group), `${u.id} 组不存在`);
   }
-  assert.equal(D.units.length, 57, '用户 2026-10-07 定的清单是 57 个');
+  assert.equal(D.units.length, 63, '57 个 + 为排满每行补的 6 个同族单位');
   for (const g of D.groups) {
     assert.ok(['common', 'more'].includes(g.tier), `${g.id} tier 非法`);
     const n = D.units.filter(u => u.group === g.id).length;
-    assert.ok(n > 0, `${g.name} 是空组`);
-    // 首屏 3 列网格：常用组必须是 3 的倍数个，否则最后一行缺一格（「更多」里允许不满）
-    if (g.tier === 'common') assert.ok(n % 3 === 0, `${g.name} 有 ${n} 个单位，不是 3 的倍数`);
+    // 用户有强迫症：每组都必须排满 3 列，不许最后一行空格子
+    assert.ok(n > 0 && n % 3 === 0, `${g.name} 有 ${n} 个单位，不是 3 的倍数`);
+  }
+  // 用户点名：立方厘米、立方分米、立方米放在同一行（同组内第 k 行 = 下标 3k..3k+2）
+  const row = id => { const u = D.units.find(x => x.id === id); const us = D.units.filter(x => x.group === u.group); return u.group + ':' + Math.floor(us.indexOf(u) / 3); };
+  assert.ok(row('cm3') === row('dm3') && row('dm3') === row('m3'), '立方厘米、立方分米、立方米不在同一行');
+  // 上下行同列对应：台 | 港 | 旧、茶匙 | 汤匙 | 杯、液盎司 | 品脱 | 夸脱
+  const col = id => { const u = D.units.find(x => x.id === id); return D.units.filter(x => x.group === u.group).indexOf(u) % 3; };
+  for (const ids of [['liang_tw', 'qian_tw'], ['liang_hk', 'qian_hk'], ['liang_old', 'qian_old'], ['tsp_m', 'tsp_us'], ['cup_m', 'cup_us'], ['floz_us', 'floz_uk'], ['qt_us', 'qt_uk']]) {
+    assert.equal(col(ids[0]), col(ids[1]), `${ids} 不在同一列`);
   }
   // 首屏只放 21 个：再多就一屏放不下（390×844 实测）
   const common = D.units.filter(u => D.groups.find(g => g.id === u.group).tier === 'common');
   assert.equal(common.length, 21);
-  for (const id of ['cm3', 'dm3']) assert.ok(common.some(u => u.id === id), `用户点名要的 ${id} 必须在首屏`);
+  for (const id of ['cm3', 'dm3', 'm3']) assert.ok(common.some(u => u.id === id), `用户点名要的 ${id} 必须在首屏`);
   // 320 宽下格子标签最多放 5 个字
   for (const u of D.units) assert.ok(u.label.length <= 5, `${u.label} 太长`);
   // 同一组内的单位必须连续（页面按 units 的顺序排格子）

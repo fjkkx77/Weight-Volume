@@ -84,7 +84,14 @@ async function run(W, H, dark) {
     await c.ev(`document.getElementById('btnMore').click()`);
     await sleep(100);
     const vis = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height>0).length`);
-    ok(`${tag} 展开后 36 格可见`, vis === 36, vis);
+    const wantMore = await c.ev(`WV_DATA.units.filter(u=>WV_DATA.groups.find(g=>g.id===u.group).tier==='more').length`);
+    ok(`${tag} 展开后「更多」的 ${wantMore} 格全部可见`, vis === wantMore && wantMore === 42, vis);
+    // 每一行 3 格都在同一水平线上、没有空格子（用户有强迫症）
+    const ragged = await c.ev(`[...document.querySelectorAll('.grid')].filter(g=>g.children.length%3!==0).length`);
+    ok(`${tag} 每个网格都排满 3 列`, ragged === 0, ragged);
+    // 同一行三格的数字字号一致（不能一格大一格小）
+    const uneven = await c.ev(`(()=>{const bad=[];document.querySelectorAll('.grid').forEach(g=>{const cs=[...g.children];for(let i=0;i<cs.length;i+=3){const f=cs.slice(i,i+3).map(c=>getComputedStyle(c.querySelector('input')).fontSize);if(new Set(f).size>1)bad.push(cs[i].dataset.unit+':'+f.join('/'))}});return bad})()`);
+    ok(`${tag} 同一行字号一致`, uneven.length === 0, uneven);
     const cut2 = await c.ev(`[...document.querySelectorAll('#more .cell label')].filter(l=>l.scrollWidth>l.clientWidth).map(l=>l.textContent)`);
     ok(`${tag} 更多单位的名称没被截断`, cut2.length === 0, cut2);
     const small2 = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height<44).length`);
@@ -122,17 +129,17 @@ async function run(W, H, dark) {
     await c.ev(`document.getElementById('btnMore').click()`);
     await c.ev(`document.getElementById('btnReset').click()`);
 
-    // 切到面粉：1 美制杯 ≈ 137.2 克，并提示只是大概
+    // 切到面粉：1 分升 = 100 毫升 × 0.58 = 58 克，并提示只是大概
     await setSub(c, 'flour');
-    await typeInto(c, 'cup_us', '1');
+    await typeInto(c, 'dl', '1');
     const g = parseFloat(await val(c, 'g'));
-    ok(`${tag} 1 美制杯面粉 ≈ 137.2 克`, Math.abs(g - 137.22) < 0.01, g);
+    ok(`${tag} 1 分升面粉 = 58 克`, g === 58, g);
     ok(`${tag} 粉粒状提示只是大概`, (await c.ev(`document.querySelector('#refer .warn')?.textContent||''`)).includes('大概'));
 
     // 非法输入只标红，不动其他格子
     await typeInto(c, 'kg', 'abc');
     ok(`${tag} 非法输入标红`, await c.ev(`document.querySelector('.cell[data-unit=kg]').classList.contains('invalid')`));
-    ok(`${tag} 非法输入不动其他格`, Math.abs(parseFloat(await val(c, 'g')) - 137.22) < 0.01);
+    ok(`${tag} 非法输入不动其他格`, parseFloat(await val(c, 'g')) === 58);
 
     // 截首屏：换回水、1.25 斤
     await setSub(c, 'water');
