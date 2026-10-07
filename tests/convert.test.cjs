@@ -86,7 +86,17 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
   // 用户点名：立方厘米、立方分米、立方米放在同一行（同组内第 k 行 = 下标 3k..3k+2）
   const row = id => { const u = D.units.find(x => x.id === id); const us = D.units.filter(x => x.group === u.group); return u.group + ':' + Math.floor(us.indexOf(u) / 3); };
   assert.ok(row('cm3') === row('dm3') && row('dm3') === row('m3'), '立方厘米、立方分米、立方米不在同一行');
-  // 上下行同列对应：台 | 港 | 旧、茶匙 | 汤匙 | 杯、液盎司 | 品脱 | 夸脱
+  // 每一行从左到右由小到大（用户 2026-10-07：「便于我查看」）；相等的并列（微升 = 立方毫米）
+  for (const g of D.groups) {
+    const us = D.units.filter(u => u.group === g.id);
+    for (let i = 0; i < us.length; i += 3) {
+      for (let k = 1; k < 3; k++) assert.ok(us[i + k].toBase >= us[i + k - 1].toBase, `${g.name}：${us[i + k - 1].label} 比 ${us[i + k].label} 大，没有从小到大`);
+    }
+  }
+  // 市制容量两行是同一条阶梯：上一行的最大值 < 下一行的最小值
+  const sv = D.units.filter(u => u.group === 'm_shi_vol');
+  assert.ok(sv[2].toBase < sv[3].toBase, '市制容量应从左上到右下一路递增');
+  // 上下行同列对应：旧 | 台 | 港、茶匙 | 汤匙 | 杯、液盎司 | 品脱 | 夸脱
   const col = id => { const u = D.units.find(x => x.id === id); return D.units.filter(x => x.group === u.group).indexOf(u) % 3; };
   for (const ids of [['liang_tw', 'qian_tw'], ['liang_hk', 'qian_hk'], ['liang_old', 'qian_old'], ['tsp_m', 'tsp_us'], ['cup_m', 'cup_us'], ['floz_us', 'floz_uk'], ['qt_us', 'qt_uk']]) {
     assert.equal(col(ids[0]), col(ids[1]), `${ids} 不在同一列`);

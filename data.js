@@ -30,7 +30,7 @@
   // tier: 'common' 首屏常用（必须一屏看全）；'more' 收在「更多单位」里。
   // 排版规则（用户 2026-10-07：「尽量把一类的放一起……我有强迫症请你好好排版规整一下」）：
   //   - 每组都是 3 的倍数个，units 的顺序就是格子顺序，**每 3 个一行，一行必须是同一类**
-  //   - 同组上下行的同一列尽量对应（台 | 港 | 旧、茶匙 | 汤匙 | 杯、液盎司 | 品脱 | 夸脱）
+  //   - 每一行从左到右由小到大（用户 2026-10-07：「便于我查看」）；同组上下行的同一列尽量对应（旧 | 台 | 港、茶匙 | 汤匙 | 杯、液盎司 | 品脱 | 夸脱）
   //   - 为了排满补了 6 个同族单位：旧制斤、台钱、港钱、石油桶、英制夸脱、立方码（57 → 63）
   var groups = [
     { id: 'shi', tier: 'common', name: '市制 · 公制', composite: 'jin' },
@@ -49,11 +49,11 @@
 
   // label：格子里显示的短名（320 宽下最多 5 个字）
   var units = [
-    // ======== 首屏常用 21 个（7 行） ========
-    // 市制：斤 两 钱
-    { id: 'jin', label: '斤', group: 'shi', kind: 'mass', toBase: 500, level: 'exact', source: SRC.law1929 + '；' + SRC.order1959 },
-    { id: 'liang', label: '两', group: 'shi', kind: 'mass', toBase: 50, level: 'exact', source: SRC.order1959 + '（1 斤 = 10 两）' },
+    // ======== 首屏常用 21 个（7 行），每行从左到右由小到大 ========
+    // 市制：钱 两 斤
     { id: 'qian', label: '钱', group: 'shi', kind: 'mass', toBase: 5, level: 'exact', source: '1929《度量衡法》第六条（1 两 = 10 钱）+ 1959 改十两制' },
+    { id: 'liang', label: '两', group: 'shi', kind: 'mass', toBase: 50, level: 'exact', source: SRC.order1959 + '（1 斤 = 10 两）' },
+    { id: 'jin', label: '斤', group: 'shi', kind: 'mass', toBase: 500, level: 'exact', source: SRC.law1929 + '；' + SRC.order1959 },
     // 公制：克 千克 吨
     { id: 'g', label: '克', group: 'shi', kind: 'mass', toBase: 1, level: 'exact', source: SRC.si },
     { id: 'kg', label: '千克', group: 'shi', kind: 'mass', toBase: 1000, level: 'exact', source: SRC.si + '（即公斤）' },
@@ -66,58 +66,54 @@
     { id: 'ml', label: '毫升', group: 'vol', kind: 'volume', toBase: 1, level: 'exact', source: SRC.si },
     { id: 'dl', label: '分升', group: 'vol', kind: 'volume', toBase: 100, level: 'exact', source: SRC.si },
     { id: 'l', label: '升', group: 'vol', kind: 'volume', toBase: 1000, level: 'exact', source: SRC.si },
-    // 英美常衡：磅 盎司 打兰（每级 1/16，跟斤两钱一样是一条阶梯）
-    { id: 'lb', label: '磅', group: 'imperial', kind: 'mass', toBase: 453.59237, level: 'exact', source: SRC.nist + '；1959 国际码磅协定' },
-    { id: 'oz', label: '盎司', group: 'imperial', kind: 'mass', toBase: 28.349523125, level: 'exact', source: '1 盎司 = 1/16 磅（' + SRC.nist + '）' },
+    // 英美常衡：打兰 盎司 磅（每级 ×16）
     { id: 'dr', label: '打兰', group: 'imperial', kind: 'mass', toBase: 1.7718451953125, level: 'exact', source: '常衡打兰 = 1/16 盎司（由 ' + SRC.nist + ' 的盎司定义推导）' },
+    { id: 'oz', label: '盎司', group: 'imperial', kind: 'mass', toBase: 28.349523125, level: 'exact', source: '1 盎司 = 1/16 磅（' + SRC.nist + '）' },
+    { id: 'lb', label: '磅', group: 'imperial', kind: 'mass', toBase: 453.59237, level: 'exact', source: SRC.nist + '；1959 国际码磅协定' },
     // 加仑 · 桶
     { id: 'gal_us', label: '美制加仑', group: 'imperial', kind: 'volume', toBase: 3785.411784, level: 'exact', source: SRC.nist + '（231 立方英寸）' },
     { id: 'gal_uk', label: '英制加仑', group: 'imperial', kind: 'volume', toBase: 4546.09, level: 'exact', source: SRC.nist },
     { id: 'bbl', label: '石油桶', group: 'imperial', kind: 'volume', toBase: 158987.294928, level: 'exact', source: '= 42 美制加仑（由 ' + SRC.nist + ' 推导）' },
-    // 各地的斤：台 | 港 | 旧（下面「更多」里的两、钱两行同列对应）
+    // 各地的斤：旧 | 台 | 港（500 < 600 < 604.8 克；下面「更多」里的两、钱两行同列对应）
+    { id: 'jin_old', label: '旧制斤', group: 'old', kind: 'mass', toBase: 500, level: 'exact', source: SRC.law1929 + '（旧制一斤十六两，与市斤同为 500 克）' },
     { id: 'jin_tw', label: '台斤', group: 'old', kind: 'mass', toBase: 600, level: 'convention', source: '台湾市场通行 1 台斤 = 600 克（第三方资料转述，未取得官方条文原文）' },
     { id: 'jin_hk', label: '港斤', group: 'old', kind: 'mass', toBase: 604.78982, level: 'exact', source: '香港《度量衡条例》第 68 章（司马斤 = 1⅓ 磅）' },
-    { id: 'jin_old', label: '旧制斤', group: 'old', kind: 'mass', toBase: 500, level: 'exact', source: SRC.law1929 + '（旧制一斤十六两，与市斤同为 500 克）' },
 
-    // ======== 更多单位 42 个（14 行） ========
-    { id: 'dan', label: '担', group: 'm_shi', kind: 'mass', toBase: 50000, level: 'exact', source: '1929《度量衡法》第六条「担：等于百斤」× 市斤 500 克' },
-    { id: 'fen', label: '分', group: 'm_shi', kind: 'mass', toBase: 0.5, level: 'convention', source: '1929《度量衡法》第六条各级十进（钱 = 10 分）；1959 改十两制后按十进推得 1 分 = 0.5 克' },
+    // ======== 更多单位 42 个（14 行），每行从左到右由小到大 ========
+    // 市制：厘 分 担
     { id: 'li', label: '厘', group: 'm_shi', kind: 'mass', toBase: 0.05, level: 'convention', source: '1929《度量衡法》第六条（分 = 10 厘）；1959 改十两制后按十进推得 1 厘 = 0.05 克' },
-
-    { id: 'mg', label: '毫克', group: 'm_metric', kind: 'mass', toBase: 1e-3, level: 'exact', source: SRC.si },
+    { id: 'fen', label: '分', group: 'm_shi', kind: 'mass', toBase: 0.5, level: 'convention', source: '1929《度量衡法》第六条各级十进（钱 = 10 分）；1959 改十两制后按十进推得 1 分 = 0.5 克' },
+    { id: 'dan', label: '担', group: 'm_shi', kind: 'mass', toBase: 50000, level: 'exact', source: '1929《度量衡法》第六条「担：等于百斤」× 市斤 500 克' },
+    // 公制：微克 毫克 克拉
     { id: 'ug', label: '微克', group: 'm_metric', kind: 'mass', toBase: 1e-6, level: 'exact', source: SRC.si },
+    { id: 'mg', label: '毫克', group: 'm_metric', kind: 'mass', toBase: 1e-3, level: 'exact', source: SRC.si },
     { id: 'ct', label: '克拉', group: 'm_metric', kind: 'mass', toBase: 0.2, level: 'exact', source: '公制克拉 = 200 毫克（' + SRC.nist + '）' },
-
     // 大重量：英石 短吨 长吨
     { id: 'st', label: '英石', group: 'm_imp_mass', kind: 'mass', toBase: 6350.29318, level: 'exact', source: '= 14 磅（由 ' + SRC.nist + ' 的磅定义推导）' },
     { id: 'ton_s', label: '短吨', group: 'm_imp_mass', kind: 'mass', toBase: 907184.74, level: 'exact', source: '= 2000 磅（' + SRC.nist + '）' },
     { id: 'ton_l', label: '长吨', group: 'm_imp_mass', kind: 'mass', toBase: 1016046.9088, level: 'exact', source: '= 2240 磅（' + SRC.nist + '）' },
-    // 金衡：金衡磅 金衡盎司 格令（贵金属，1 金衡盎司 = 480 格令）
-    { id: 'lbt', label: '金衡磅', group: 'm_imp_mass', kind: 'mass', toBase: 373.2417216, level: 'exact', source: '= 12 金衡盎司（由 ' + SRC.nist + ' 推导）' },
-    { id: 'ozt', label: '金衡盎司', group: 'm_imp_mass', kind: 'mass', toBase: 31.1034768, level: 'exact', source: '= 480 格令（由 ' + SRC.nist + ' 的格令推导；NIST 表中列为 31.10348 克）' },
+    // 金衡：格令 金衡盎司 金衡磅（贵金属，1 金衡盎司 = 480 格令）
     { id: 'gr', label: '格令', group: 'm_imp_mass', kind: 'mass', toBase: 0.06479891, level: 'exact', source: SRC.nist },
-
-    // 各地的两、钱：台 | 港 | 旧
+    { id: 'ozt', label: '金衡盎司', group: 'm_imp_mass', kind: 'mass', toBase: 31.1034768, level: 'exact', source: '= 480 格令（由 ' + SRC.nist + ' 的格令推导；NIST 表中列为 31.10348 克）' },
+    { id: 'lbt', label: '金衡磅', group: 'm_imp_mass', kind: 'mass', toBase: 373.2417216, level: 'exact', source: '= 12 金衡盎司（由 ' + SRC.nist + ' 推导）' },
+    // 各地的两、钱：旧 | 台 | 港
+    { id: 'liang_old', label: '旧制两', group: 'm_old', kind: 'mass', toBase: 31.25, level: 'exact', source: SRC.law1929 + '（500 ÷ 16）' },
     { id: 'liang_tw', label: '台两', group: 'm_old', kind: 'mass', toBase: 37.5, level: 'convention', source: '台斤 ÷ 16（台斤为台湾市场通行值，第三方资料转述）' },
     { id: 'liang_hk', label: '港两', group: 'm_old', kind: 'mass', toBase: 37.79936375, level: 'exact', source: '港斤 ÷ 16（香港《度量衡条例》第 68 章）' },
-    { id: 'liang_old', label: '旧制两', group: 'm_old', kind: 'mass', toBase: 31.25, level: 'exact', source: SRC.law1929 + '（500 ÷ 16）' },
+    { id: 'qian_old', label: '旧制钱', group: 'm_old', kind: 'mass', toBase: 3.125, level: 'exact', source: SRC.law1929 + '（旧制两 ÷ 10）' },
     { id: 'qian_tw', label: '台钱', group: 'm_old', kind: 'mass', toBase: 3.75, level: 'convention', source: '台两 ÷ 10（台湾市场通行，第三方资料转述）' },
     { id: 'qian_hk', label: '港钱', group: 'm_old', kind: 'mass', toBase: 3.779936375, level: 'exact', source: '港两 ÷ 10（香港《度量衡条例》第 68 章：钱 = 1/160 斤）' },
-    { id: 'qian_old', label: '旧制钱', group: 'm_old', kind: 'mass', toBase: 3.125, level: 'exact', source: SRC.law1929 + '（旧制两 ÷ 10）' },
-
-    // 小容量：微升 立方毫米 厘升（剩下的三个小单位，微升 = 立方毫米）
+    // 小容量：微升 立方毫米 厘升（微升 = 立方毫米，并列）
     { id: 'ul', label: '微升', group: 'm_vol', kind: 'volume', toBase: 1e-3, level: 'exact', source: SRC.si + '（1 微升 = 1 立方毫米）' },
     { id: 'mm3', label: '立方毫米', group: 'm_vol', kind: 'volume', toBase: 1e-3, level: 'exact', source: SRC.si },
     { id: 'cl', label: '厘升', group: 'm_vol', kind: 'volume', toBase: 10, level: 'exact', source: SRC.si },
-
-    // 市制容量：石 斗 升 / 合 勺 撮（一条十进阶梯）
-    { id: 'shi_dan', label: '石', group: 'm_shi_vol', kind: 'volume', toBase: 1e5, level: 'exact', source: '1929《度量衡法》第五、六条（市升 = 公升，石 = 100 升）' },
-    { id: 'dou', label: '斗', group: 'm_shi_vol', kind: 'volume', toBase: 1e4, level: 'exact', source: '1929《度量衡法》第五、六条（斗 = 10 升）' },
-    { id: 'shi_l', label: '市升', group: 'm_shi_vol', kind: 'volume', toBase: 1000, level: 'exact', source: '1929《度量衡法》第五条（以公升为市升）' },
-    { id: 'ge', label: '合', group: 'm_shi_vol', kind: 'volume', toBase: 100, level: 'exact', source: '1929《度量衡法》第六条（合 = 1/10 升）' },
-    { id: 'shao', label: '勺', group: 'm_shi_vol', kind: 'volume', toBase: 10, level: 'exact', source: '1929《度量衡法》第六条（勺 = 1/100 升）' },
+    // 市制容量：撮 勺 合 / 市升 斗 石（一条十进阶梯，从左上到右下一路递增）
     { id: 'cuo', label: '撮', group: 'm_shi_vol', kind: 'volume', toBase: 1, level: 'exact', source: '1929《度量衡法》第六条（撮 = 1/1000 升）' },
-
+    { id: 'shao', label: '勺', group: 'm_shi_vol', kind: 'volume', toBase: 10, level: 'exact', source: '1929《度量衡法》第六条（勺 = 1/100 升）' },
+    { id: 'ge', label: '合', group: 'm_shi_vol', kind: 'volume', toBase: 100, level: 'exact', source: '1929《度量衡法》第六条（合 = 1/10 升）' },
+    { id: 'shi_l', label: '市升', group: 'm_shi_vol', kind: 'volume', toBase: 1000, level: 'exact', source: '1929《度量衡法》第五条（以公升为市升）' },
+    { id: 'dou', label: '斗', group: 'm_shi_vol', kind: 'volume', toBase: 1e4, level: 'exact', source: '1929《度量衡法》第五、六条（斗 = 10 升）' },
+    { id: 'shi_dan', label: '石', group: 'm_shi_vol', kind: 'volume', toBase: 1e5, level: 'exact', source: '1929《度量衡法》第五、六条（市升 = 公升，石 = 100 升）' },
     // 厨房：公制 / 美制 上下同列对应（茶匙 | 汤匙 | 杯）
     { id: 'tsp_m', label: '茶匙', group: 'm_kitchen', kind: 'volume', toBase: 5, level: 'convention', source: '国际通行公制量勺 5 毫升；未查到中国统一的量勺国家标准' },
     { id: 'tbsp_m', label: '汤匙', group: 'm_kitchen', kind: 'volume', toBase: 15, level: 'convention', source: '国际通行公制量勺 15 毫升；未查到中国统一的量勺国家标准' },
@@ -125,7 +121,6 @@
     { id: 'tsp_us', label: '美制茶匙', group: 'm_kitchen', kind: 'volume', toBase: 4.92892159375, level: 'exact', source: '= 1/6 美制液盎司（' + SRC.nist + '）' },
     { id: 'tbsp_us', label: '美制汤匙', group: 'm_kitchen', kind: 'volume', toBase: 14.78676478125, level: 'exact', source: '= 1/2 美制液盎司（' + SRC.nist + '）' },
     { id: 'cup_us', label: '美制杯', group: 'm_kitchen', kind: 'volume', toBase: 236.5882365, level: 'exact', source: SRC.nist },
-
     // 英美液量：美制 / 英制 上下同列对应（液盎司 | 品脱 | 夸脱）；立方英制一行
     { id: 'floz_us', label: '美制液盎司', group: 'm_imp_vol', kind: 'volume', toBase: 29.5735295625, level: 'exact', source: '1/128 美制加仑（' + SRC.nist + '）' },
     { id: 'pt_us', label: '美制品脱', group: 'm_imp_vol', kind: 'volume', toBase: 473.176473, level: 'exact', source: '= 1/8 美制加仑（由 ' + SRC.nist + ' 推导）' },
