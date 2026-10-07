@@ -1,4 +1,4 @@
-// 换算内核自检：node --test tests/
+// 换算内核自检：node --test "tests/*.test.cjs"（Node 24 下 `node --test tests/` 会把目录当文件跑）
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const D = require('../data.js');
@@ -18,9 +18,9 @@ test('定义值与出处一致', () => {
   assert.equal(C.toBase(1, 'jin_hk'), 604.78982);
   assert.equal(C.toBase(1, 'jin_tw'), 600);
   assert.equal(C.toBase(1, 'liang_old'), 31.25);
-  // 推导关系：美制液量盎司 = 1/128 美制加仑，英制 = 1/160 英制加仑
+  // 推导关系：美制液量盎司 = 1/128 美制加仑；16 旧制两 = 1 市斤
   assert.ok(close(C.toBase(128, 'floz_us'), 3785.411784));
-  assert.ok(close(C.toBase(160, 'floz_uk'), 4546.09));
+  assert.ok(close(C.toBase(16, 'liang_old'), C.toBase(1, 'jin')));
 });
 
 test('每个单位来回换算一圈回到原值', () => {
@@ -31,22 +31,38 @@ test('每个单位来回换算一圈回到原值', () => {
   }
 });
 
-test('数据完整性：出处非空、id 唯一、枚举合法', () => {
+test('数据完整性：出处非空、id 唯一、枚举合法、网格排得整齐', () => {
   const ids = new Set();
-  const all = [...D.units, ...D.substances, ...D.items];
-  for (const r of all) {
+  for (const r of [...D.units, ...D.substances, ...D.items]) {
     assert.ok(r.id && !ids.has(r.id), `重复或缺失 id: ${r.id}`);
     ids.add(r.id);
     assert.ok(typeof r.source === 'string' && r.source.trim(), `${r.id} 缺出处`);
     assert.ok(r.level in D.levels, `${r.id} 级别非法: ${r.level}`);
   }
-  for (const t of D.tips) assert.ok(t.source && t.source.trim(), `口诀缺出处: ${t.text}`);
   for (const u of D.units) {
     assert.ok(['mass', 'volume'].includes(u.kind), u.id);
+    assert.ok(u.label && u.label.trim(), `${u.id} 缺显示名`);
     assert.ok(D.groups.some(g => g.id === u.group), `${u.id} 组不存在`);
   }
-  for (const it of D.items) assert.ok(['mass', 'volume'].includes(it.kind), it.id);
+  // 3 列网格：每组必须是 3 的倍数个，否则最后一行缺一格
+  for (const g of D.groups) {
+    const n = D.units.filter(u => u.group === g.id).length;
+    assert.ok(n > 0 && n % 3 === 0, `${g.name} 有 ${n} 个单位，不是 3 的倍数`);
+  }
+  // 同一组内的单位必须连续（页面按 units 的顺序排格子）
+  const order = D.units.map(u => u.group).filter((g, i, a) => i === 0 || a[i - 1] !== g);
+  assert.equal(new Set(order).size, order.length, '同组单位没有排在一起');
   assert.equal(D.substances[0].id, 'water', '默认物质必须是水');
+});
+
+test('图鉴只收标准规定与包装标称（用户 2026-10-07 定：不要经验值）', () => {
+  const allowed = ['standard', 'derived', 'label'];
+  for (const it of D.items) {
+    assert.ok(allowed.includes(it.level), `${it.id} 级别 ${it.level} 不该进图鉴`);
+    assert.ok(['mass', 'volume'].includes(it.kind), it.id);
+    assert.ok(!it.range, `${it.id} 带了区间：既定标准应是单一数值`);
+  }
+  assert.ok(!('estimate' in D.levels), '经验值这一级已经撤掉');
 });
 
 test('按物质跨重量/容量换算', () => {
@@ -81,34 +97,49 @@ test('数字显示不带浮点尾巴', () => {
   assert.ok(!/e/i.test(C.formatNumber(123456789012)), '大数不用科学计数法');
 });
 
-test('物品联动推荐好记', () => {
-  const s = C.suggestItems({ g: 500, ml: 500 });
-  assert.ok(s.length >= 1 && s.length <= 3);
-  for (const x of s) assert.ok(x.ratio >= 0.5 && x.ratio <= 20, `${x.item.id} ${x.ratio}`);
-  assert.ok(s.some(x => ['bottle', 'egg'].includes(x.item.id)));
-  // 小倍数优先：50 克首推「≈ 1 个鸡蛋」而不是「≈ 8 枚硬币」（LOG_W 过小时会退化）
-  assert.equal(C.suggestItems({ g: 50, ml: 50 })[0].item.id, 'egg');
-  assert.deepEqual(C.suggestItems({ g: 1e9, ml: 1e9 }), []);
-  assert.deepEqual(C.suggestItems({ g: 0, ml: 0 }), []);
-  // 不推荐 linkable=false 的物品
-  for (const v of [3000, 5000, 8000]) {
-    assert.ok(!C.suggestItems({ g: v, ml: v }).some(x => x.item.id === 'watermelon'));
-  }
-  // 推荐的几个量级要拉开
-  const big = C.suggestItems({ g: 1000, ml: 1000 });
-  for (let i = 0; i < big.length; i++) for (let j = i + 1; j < big.length; j++) {
-    const k = big[i].item.value / big[j].item.value;
-    assert.ok(k >= 1.6 || k <= 1 / 1.6, `${big[i].item.id} vs ${big[j].item.id}`);
+test('格子写法：大数用亿/万亿，小数可减位数', () => {
+  assert.equal(C.formatCell(625), '625');
+  assert.equal(C.formatCell(99999999), '99999999', '1 亿以下照常');
+  assert.equal(C.formatCell(199999998000), '2000亿');
+  assert.equal(C.formatCell(99999999000000), '100万亿');
+  assert.equal(C.formatCell(123456789), '1.23457亿');
+  assert.equal(C.formatCell(0.00000132086, 6), '0.00000132086');
+  assert.equal(C.formatCell(0.00000132086, 3), '0.00000132');
+  assert.equal(C.formatCell(1e-10), '≈0');
+  assert.equal(C.formatCell(0), '0');
+  for (const x of [1e8, 3.3e9, 7.7e13, 2e15]) assert.ok(!/e/i.test(C.formatCell(x)), String(x));
+});
+
+test('物品推荐：恰好等于某物品时首推它', () => {
+  // 按水算（克 = 毫升）。5000 同时是「一袋大米」和「一桶食用油」，所以判据是「首推的正好 1 倍」，不是认死某一个
+  for (const it of D.items) {
+    const s = C.suggestItems({ g: it.value, ml: it.value });
+    assert.ok(s[0] && close(s[0].ratio, 1), `${it.value} 应首推一个正好 1 倍的物品，实际 ${s.map(x => x.item.id + '×' + x.ratio)}`);
   }
 });
 
-test('物品推荐全量程扫描：倍数始终好记，日常用量都有参照', () => {
+test('物品推荐全量程扫描：倍数始终好记、最多两条、量级拉开', () => {
   for (let e = -2; e <= 6; e += 0.125) {
     const v = 10 ** e;
     const s = C.suggestItems({ g: v, ml: v });
+    assert.ok(s.length <= 2);
     for (const x of s) assert.ok(x.ratio >= 0.5 && x.ratio <= 20, `${v}: ${x.item.id} ×${x.ratio}`);
-    // 0.1 克 ~ 100 千克是日常会问的量，必须至少给一个参照
-    if (v >= 0.1 && v <= 1e5) assert.ok(s.length >= 1, `${v} 没有任何参照`);
+    if (s.length === 2) {
+      const k = s[0].item.value / s[1].item.value;
+      assert.ok(k >= 1.6 || k <= 1 / 1.6, `${v}: ${s[0].item.id} vs ${s[1].item.id}`);
+    }
+  }
+  assert.deepEqual(C.suggestItems({ g: 1e9, ml: 1e9 }), []);
+  assert.deepEqual(C.suggestItems({ g: 0, ml: 0 }), []);
+});
+
+test('推荐文字：量词不重复、半个、数字与字母之间留空格', () => {
+  const pick = (g) => C.suggestItems({ g, ml: g }).map(C.suggestionText);
+  assert.ok(pick(495).includes('1.5 罐可乐'), pick(495));
+  assert.ok(pick(275).includes('半瓶矿泉水'), pick(275));
+  assert.ok(pick(9.98).includes('2 张 A4 纸（80 克规格）'), pick(9.98));
+  for (let e = -1; e <= 5; e += 0.25) {
+    for (const t of pick(10 ** e)) assert.ok(!/(\S)一\1/.test(t), `量词重复：${t}`);
   }
 });
 

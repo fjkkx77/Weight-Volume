@@ -5,47 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta name="description" content="斤、两、克、毫升、杯、磅等重量与容量单位换算，并用鸡蛋、矿泉水等生活物品帮你记住它们有多重">
+<meta name="description" content="斤、两、克、毫升、杯、磅等重量与容量单位换算，并用包装标称的瓶装水、罐装可乐等物品作参照">
 <title>斤两换算</title>
 <style>
-  /* 配色 token 照搬 data-Calculation，两站观感一致 */
+  /* 配色 token 照搬 data-Calculation */
   :root {
-    --bg: #F2F2F7;
-    --card-bg: #FFFFFF;
-    --text-main: #000000;
+    --bg: #F2F2F7; --card: #FFFFFF; --text: #000000;
     /* 要读的次要文字不用系统灰 #8E8E93（白底只有 3.23:1），用 #6E6E73（5.03:1） */
     --text-2: #6E6E73;
-    --accent: #007AFF;
-    --accent-rgb: 0, 122, 255;
-    --nav-idle: #636368;
-    --row-line: rgba(60, 60, 67, 0.18);
-    --press: rgba(0, 0, 0, 0.06);
-    --shadow: rgba(0, 0, 0, 0.06);
-    --warn: #B25000;
-    --warn-bg: rgba(255, 149, 0, 0.14);
-    --badge-bg: rgba(0, 122, 255, 0.10);
-    --badge-fg: #0056B3;
-    --flash: rgba(0, 122, 255, 0.16);
-    --invalid: #D70015;
+    --accent: #007AFF; --accent-rgb: 0, 122, 255;
+    --cell: #F2F2F7; --press: rgba(0, 0, 0, .06); --shadow: rgba(0, 0, 0, .06);
+    --warn: #B25000; --invalid: #D70015;
+    --badge-bg: rgba(0, 122, 255, .10); --badge-fg: #0056B3;
+    --line: rgba(60, 60, 67, .18);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #000000;
-      --card-bg: #1C1C1E;
-      --text-main: #FFFFFF;
-      --text-2: #AEAEB2;
-      --accent: #0A84FF;
-      --accent-rgb: 10, 132, 255;
-      --nav-idle: #B8B8BE;
-      --row-line: rgba(84, 84, 88, 0.6);
-      --press: rgba(255, 255, 255, 0.10);
-      --shadow: rgba(0, 0, 0, 0.3);
-      --warn: #FFB340;
-      --warn-bg: rgba(255, 159, 10, 0.16);
-      --badge-bg: rgba(10, 132, 255, 0.18);
-      --badge-fg: #8CC2FF;
-      --flash: rgba(10, 132, 255, 0.28);
-      --invalid: #FF6961;
+      --bg: #000000; --card: #1C1C1E; --text: #FFFFFF; --text-2: #AEAEB2;
+      --accent: #0A84FF; --accent-rgb: 10, 132, 255;
+      --cell: #2C2C2E; --press: rgba(255, 255, 255, .10); --shadow: rgba(0, 0, 0, .3);
+      --warn: #FFB340; --invalid: #FF6961;
+      --badge-bg: rgba(10, 132, 255, .18); --badge-fg: #8CC2FF;
+      --line: rgba(84, 84, 88, .6);
     }
   }
 
@@ -54,139 +35,88 @@
   html, body { overscroll-behavior-y: contain; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg); color: var(--text-main);
-    font-size: 16px; line-height: 1.45;
-    padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
-    -webkit-text-size-adjust: 100%;
+    background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
+    padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+             calc(32px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   }
-  button { font: inherit; color: inherit; touch-action: manipulation; }
-  .container { width: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  button, select { font: inherit; color: inherit; touch-action: manipulation; }
+  .container { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--card); border-radius: 20px; padding: 16px 14px; box-shadow: 0 8px 24px var(--shadow); }
 
-  header h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; text-align: center; }
-  header p { text-align: center; color: var(--text-2); font-size: 15px; margin-top: 2px; }
-
-  /* 吸顶模块导航：照搬 data-Calculation 模块六（白底 + 蓝色实心药丸，不用半透明毛玻璃） */
-  .section-nav { position: sticky; top: calc(8px + env(safe-area-inset-top)); z-index: 90;
-    display: flex; gap: 4px; padding: 4px; border-radius: 14px;
-    background: var(--card-bg); box-shadow: 0 8px 24px var(--shadow); }
-  .nav-item { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center;
-    border: none; background: transparent; color: var(--nav-idle);
-    font-size: 15px; font-weight: 600; border-radius: 10px; cursor: pointer;
-    transition: background-color .25s, color .25s; }
-  .nav-item[aria-current="true"] { background: var(--accent); color: #FFFFFF;
-    box-shadow: 0 4px 12px rgba(var(--accent-rgb), .35); }
-  .nav-item:not([aria-current="true"]):active { background: var(--press); }
-
-  .card { background: var(--card-bg); border-radius: 20px; padding: 20px 16px;
-    box-shadow: 0 8px 24px var(--shadow); scroll-margin-top: var(--nav-offset, 72px); }
-  .section-header { display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; }
-  .section-title { font-size: clamp(17px, 4.6vw, 19px); font-weight: 800; letter-spacing: -0.02em;
-    display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .section-title::before { content: ""; width: 4px; height: 1.05em; border-radius: 2px; flex: none;
+  .head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .head h1, .head h2 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .head h1::before, .head h2::before { content: ""; width: 4px; height: 1.05em; border-radius: 2px; flex: none;
     background: linear-gradient(180deg, var(--accent), #5E5CE6); }
-  .btn-reset { min-height: 44px; padding: 0 14px; border: none; border-radius: 12px;
-    background: rgba(142, 142, 147, .15); color: var(--accent); font-size: 15px; font-weight: 600;
-    display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-  .btn-reset:active { background: rgba(142, 142, 147, .28); }
 
-  .label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 8px; }
+  /* 选物质：原生 select，iPhone 上点开就是系统滚轮 */
+  .sub-wrap { position: relative; flex: none; }
+  .sub-select { appearance: none; -webkit-appearance: none; min-height: 44px; border: none; border-radius: 12px;
+    background: var(--cell); padding: 0 30px 0 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .sub-wrap::after { content: ""; position: absolute; right: 13px; top: 50%; width: 7px; height: 7px; pointer-events: none;
+    border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2); transform: translateY(-70%) rotate(45deg); }
+  .btn-icon { width: 44px; height: 44px; border: none; border-radius: 12px; background: var(--cell); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+  .btn-icon:active, .sub-select:active { background: var(--press); }
 
-  /* 物质选择：4 列网格自然折行，不做横向滚动 */
-  .subs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .sub-btn { min-height: 56px; border: none; border-radius: 12px; background: var(--bg);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-    font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 2px;
-    transition: background-color .2s, color .2s, transform .15s; }
-  .sub-btn .em { font-size: 20px; line-height: 1.1; }
-  .sub-btn:active { transform: scale(.96); }
-  .sub-btn[aria-pressed="true"] { background: var(--accent); color: #FFFFFF;
-    box-shadow: 0 4px 12px rgba(var(--accent-rgb), .3); }
-  .density { font-size: 14px; color: var(--text-2); margin-top: 10px; }
-  .density b { color: var(--text-main); font-weight: 600; }
-  .warn { margin-top: 8px; font-size: 14px; color: var(--warn); background: var(--warn-bg);
-    border-radius: 10px; padding: 8px 10px; }
+  /* 单位：每组一个 3 列网格，标签收进格子里（2026-10-07 用户在 A/B 对比图里选的 B） */
+  .group + .group { margin-top: 10px; }
+  .cap { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 2px 5px; }
+  .cap b { color: var(--accent); font-size: 13px; white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .cell { height: 58px; border-radius: 12px; background: var(--cell); padding: 6px 10px 4px;
+    display: flex; flex-direction: column; justify-content: space-between; cursor: text;
+    border: 2px solid transparent; transition: border-color .2s, background-color .2s; }
+  .cell label { font-size: 12.5px; font-weight: 600; color: var(--text-2); line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
+  .cell input { width: 100%; min-width: 0; height: 26px; border: none; outline: none; background: transparent; padding: 0;
+    color: var(--text); font-family: inherit; font-size: 17px; font-weight: 700; text-align: right;
+    font-variant-numeric: tabular-nums; }
+  .cell input::placeholder { color: var(--text-2); opacity: .45; font-weight: 600; }
+  /* 正在输入的那一格（换算的起点）：蓝描边 + 浅蓝底 + 蓝标签。聚焦但还没输入时给一层浅一点的提示 */
+  .cell.src { border-color: var(--accent); background: rgba(var(--accent-rgb), .10); }
+  .cell.src label { color: var(--accent); }
+  .cell:focus-within:not(.src) { border-color: rgba(var(--accent-rgb), .45); }
+  .cell.invalid input { color: var(--invalid); }
 
-  /* 结果摘要：这一屏的主角 */
-  .summary { margin-top: 16px; border-radius: 16px; padding: 14px;
-    background: linear-gradient(135deg, rgba(var(--accent-rgb), .10), rgba(94, 92, 230, .10)); }
-  .summary-main { font-size: clamp(22px, 7vw, 28px); font-weight: 800; letter-spacing: -0.01em;
-    font-variant-numeric: proportional-nums; overflow-wrap: anywhere; }
-  .summary-sub { font-size: 15px; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
-  .summary-hint { font-size: 15px; color: var(--text-2); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .chip { min-height: 44px; border: none; border-radius: 22px; padding: 0 14px;
-    background: var(--card-bg); box-shadow: 0 2px 8px var(--shadow);
-    font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-    max-width: 100%; }
-  .chip:active { transform: scale(.97); }
+  .refer { margin-top: 12px; font-size: 14px; color: var(--text-2); min-height: 20px; overflow-wrap: anywhere; }
+  .refer b { color: var(--text); font-weight: 700; }
+  .refer .warn { color: var(--warn); display: block; margin-top: 2px; }
 
-  /* 单位列表：iOS「inset grouped」样式——左名称、右数值，行间细线 */
-  .groups { margin-top: 18px; display: flex; flex-direction: column; gap: 18px; }
-  .group-title { font-size: 13px; font-weight: 600; color: var(--text-2); padding: 0 4px 6px; }
-  .rows { background: var(--bg); border-radius: 14px; overflow: hidden; }
-  .row { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 12px;
-    position: relative; transition: background-color .4s; }
-  .row + .row::before { content: ""; position: absolute; top: 0; left: 12px; right: 0;
-    height: 1px; transform: scaleY(.5); transform-origin: top; background: var(--row-line); }
-  .row label { flex: 0 1 auto; min-width: 0; font-size: 16px; font-weight: 600; cursor: text; }
-  .row label small { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); line-height: 1.2; }
-  .row input { flex: 1 1 0; min-width: 0; width: 100%; border: none; background: transparent;
-    text-align: right; font-size: 17px; font-weight: 500; color: var(--text-main);
-    font-family: inherit; font-variant-numeric: tabular-nums; padding: 13px 0; outline: none; }
-  .row input::placeholder { color: var(--text-2); opacity: .55; }
-  .row:focus-within { background: rgba(var(--accent-rgb), .08); }
-  .row.invalid input { color: var(--invalid); }
-  .row.flash { background: var(--flash); }
-  .group-foot { font-size: 13px; color: var(--text-2); padding: 6px 4px 0; overflow-wrap: anywhere; }
-  .group-foot b { color: var(--text-main); font-weight: 600; }
-
-  /* 分段控件（图鉴：重量 / 容量） */
-  .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--bg); margin-bottom: 12px; }
+  /* 生活参照：分段 + 列表 */
+  .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--cell); margin-bottom: 10px; }
   .seg button { flex: 1; min-height: 44px; border: none; border-radius: 10px; background: transparent;
-    color: var(--nav-idle); font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color .2s, color .2s; }
-  .seg button[aria-selected="true"] { background: var(--card-bg); color: var(--text-main); box-shadow: 0 2px 8px var(--shadow); }
-
-  .items { background: var(--bg); border-radius: 14px; overflow: hidden; }
-  .item { width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;
-    display: flex; gap: 12px; align-items: flex-start; padding: 12px; position: relative;
-    transition: background-color .4s; }
-  .item + .item::before { content: ""; position: absolute; top: 0; left: 60px; right: 0;
-    height: 1px; transform: scaleY(.5); transform-origin: top; background: var(--row-line); }
+    color: #636368; font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color .2s, color .2s; }
+  @media (prefers-color-scheme: dark) { .seg button { color: #B8B8BE; } }
+  .seg button[aria-selected="true"] { background: var(--card); color: var(--text); box-shadow: 0 2px 8px var(--shadow); }
+  .items { border-radius: 14px; background: var(--cell); overflow: hidden; }
+  .item { width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; position: relative;
+    display: flex; gap: 12px; align-items: center; min-height: 56px; padding: 8px 12px; }
+  .item + .item::before { content: ""; position: absolute; top: 0; left: 56px; right: 0; height: 1px;
+    transform: scaleY(.5); transform-origin: top; background: var(--line); }
   .item:active { background: var(--press); }
-  .item.flash { background: var(--flash); }
-  .item .em { font-size: 30px; line-height: 1; width: 36px; text-align: center; flex: none; padding-top: 2px; }
-  .item .body { flex: 1; min-width: 0; }
-  .item .name { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .badge { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 6px;
-    background: var(--badge-bg); color: var(--badge-fg); }
-  .badge.est { background: var(--warn-bg); color: var(--warn); }
-  .item .val { font-size: 15px; margin-top: 2px; }
-  .item .val b { font-weight: 700; }
-  .item .src { font-size: 13px; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
-  .item .go { flex: none; align-self: center; color: var(--text-2); font-size: 20px; }
+  .item .em { font-size: 26px; line-height: 1; width: 32px; text-align: center; flex: none; }
+  .item .body { flex: 1; min-width: 0; display: block; }
+  .item .name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 16px; font-weight: 700; }
+  .badge { font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: var(--badge-bg); color: var(--badge-fg); }
+  .item .val { display: block; font-size: 14px; color: var(--text-2); margin-top: 1px; }
+  .item .val b { color: var(--text); }
+  .item .go { flex: none; color: var(--text-2); font-size: 20px; }
+  .note { font-size: 12.5px; color: var(--text-2); margin-top: 8px; }
 
-  .tips { display: flex; flex-direction: column; gap: 10px; }
-  .tips details { background: var(--bg); border-radius: 14px; }
-  .tips summary { list-style: none; cursor: pointer; min-height: 48px; padding: 12px 40px 12px 14px;
-    font-size: 16px; font-weight: 700; position: relative; }
-  .tips summary::-webkit-details-marker { display: none; }
-  .tips summary::after { content: ""; position: absolute; right: 18px; top: 50%; width: 8px; height: 8px;
-    border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2);
-    transform: translateY(-70%) rotate(45deg); transition: transform .2s; }
-  .tips details[open] summary::after { transform: translateY(-20%) rotate(-135deg); }
-  .tips .tip-body { padding: 0 14px 12px; font-size: 15px; }
-  .tips .tip-src { font-size: 13px; color: var(--text-2); margin-top: 4px; }
-
-  footer { font-size: 13px; color: var(--text-2); text-align: center; padding: 4px 8px; }
+  /* 320 档（iPhone SE 一代）：压尺寸不换形态——每格可用宽度从约 57px 撑到约 72px，8 位数字和「美制液盎司」才放得下 */
+  @media (max-width: 359px) {
+    body { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); }
+    .card { padding: 14px 10px; }
+    .grid { gap: 6px; }
+    .cell { padding: 6px 6px 4px; }
+  }
 
   @media (hover: hover) {
-    .sub-btn:not([aria-pressed="true"]):hover, .chip:hover, .item:hover { background-color: var(--press); }
-    .chip:hover { background-color: var(--card-bg); filter: brightness(.97); }
+    .item:hover, .btn-icon:hover { background-color: var(--press); }
   }
-  @media (prefers-reduced-motion: reduce) {
-    * { transition: none !important; }
-  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
   /* ======== 下拉刷新组件 CSS：原样拷自 references/组件_下拉刷新（v1.7）======== */
   #ptr-indicator { position: fixed; top: calc(-44px + env(safe-area-inset-top, 0px)); left: 50%; margin-left: -18px;
@@ -210,58 +140,27 @@
 </head>
 <body>
 <div class="container">
-  <header>
-    <h1>斤两换算</h1>
-    <p>重量 · 容量 · 生活里的参照物</p>
-  </header>
-
-  <nav class="section-nav" id="sectionNav" aria-label="模块导航">
-    <button type="button" class="nav-item" data-target="cardConvert">换算</button>
-    <button type="button" class="nav-item" data-target="cardItems">图鉴</button>
-    <button type="button" class="nav-item" data-target="cardTips">口诀</button>
-  </nav>
-
   <section class="card" id="cardConvert" aria-labelledby="ttlConvert">
-    <div class="section-header">
-      <h2 class="section-title" id="ttlConvert">换算</h2>
-      <button type="button" class="btn-reset" id="btnReset">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
-        归零
+    <div class="head">
+      <h1 id="ttlConvert">斤两换算</h1>
+      <div class="sub-wrap"><select class="sub-select" id="sub" aria-label="按什么东西换算重量和容量"></select></div>
+      <button type="button" class="btn-icon" id="btnReset" aria-label="归零">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
       </button>
     </div>
-
-    <div class="label" id="subsLabel">按什么东西换算重量 ⇄ 容量</div>
-    <div class="subs" id="subs" role="group" aria-labelledby="subsLabel"></div>
-    <div class="density" id="density"></div>
-    <div class="warn" id="warn" hidden></div>
-
-    <div class="summary" id="summary" aria-live="polite"></div>
-
-    <div class="groups" id="groups"></div>
+    <div id="groups"></div>
+    <div class="refer" id="refer" aria-live="polite"></div>
   </section>
 
   <section class="card" id="cardItems" aria-labelledby="ttlItems">
-    <div class="section-header">
-      <h2 class="section-title" id="ttlItems">生活参照图鉴</h2>
-    </div>
+    <div class="head"><h2 id="ttlItems">生活参照</h2></div>
     <div class="seg" role="tablist" aria-label="物品类别">
       <button type="button" role="tab" id="tabMass" data-kind="mass" aria-selected="true">按重量</button>
       <button type="button" role="tab" id="tabVolume" data-kind="volume" aria-selected="false">按容量</button>
     </div>
     <div class="items" id="items" role="list"></div>
+    <p class="note">只收有标准规定或包装上印着标称值的物品。点一下填进上面的换算。</p>
   </section>
-
-  <section class="card" id="cardTips" aria-labelledby="ttlTips">
-    <div class="section-header">
-      <h2 class="section-title" id="ttlTips">记忆口诀</h2>
-    </div>
-    <div class="tips" id="tips"></div>
-  </section>
-
-  <footer>
-    单位换算数值核实于 2026-10-06，每一条都标了出处。<br>
-    物品重量是典型值，标「经验值」的没有查到权威数据，仅供建立量感。
-  </footer>
 </div>
 
 <div id="ptr-indicator" aria-hidden="true">
@@ -278,185 +177,115 @@
   'use strict';
   var D = window.WV_DATA, C = window.WV;
   var $ = function (id) { return document.getElementById(id); };
-
-  // 当前状态：哪一格是用户输入的（源），输入了什么数，按什么物质换算
-  var state = { unitId: null, value: null, substanceId: D.substances[0].id };
-  var inputs = {};   // unitId -> <input>
-
   function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+
+  // 用户输入的是哪一格（换算起点）、输入了什么数、按什么物质换算
+  var state = { unitId: null, value: null, sub: D.substances[0].id };
+  var inputs = {};
+
+  // ---------- 渲染 ----------
+  $('sub').innerHTML = D.substances.map(function (s) {
+    return '<option value="' + s.id + '">按' + esc(s.name) + '</option>';
+  }).join('');
+
+  $('groups').innerHTML = D.groups.map(function (g) {
+    var cells = D.units.filter(function (u) { return u.group === g.id; }).map(function (u) {
+      return '<div class="cell" data-unit="' + u.id + '"><label for="u_' + u.id + '">' + esc(u.label) + '</label>' +
+        '<input id="u_' + u.id + '" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" data-unit="' + u.id + '"></div>';
+    }).join('');
+    return '<div class="group" data-group="' + g.id + '"><div class="cap"><span>' + esc(g.name) + '</span>' +
+      (g.composite ? '<b data-comp="' + g.id + '"></b>' : '') + '</div><div class="grid">' + cells + '</div></div>';
+  }).join('');
+  D.units.forEach(function (u) { inputs[u.id] = $('u_' + u.id); });
+
+  // 数字放不下时：先保持 6 位有效数字缩字号（17 → 12px），还放不下再减有效位数（6 → 3）。
+  // 大数由 formatCell 改写成「亿 / 万亿」。起点格是用户自己打的字，只缩字号不改内容
+  var SIZES = [17, 15, 13.5, 12], SIGS = [6, 5, 4, 3];
+  function fitSize(el) {
+    for (var i = 0; i < SIZES.length; i++) {
+      el.style.fontSize = SIZES[i] + 'px';
+      if (el.scrollWidth <= el.clientWidth) return true;
+    }
+    return false;
+  }
+  function show(el, x) {
+    if (x === null) { el.value = ''; el.style.fontSize = ''; return; }
+    for (var i = 0; i < SIGS.length; i++) {
+      el.value = C.formatCell(x, SIGS[i]);
+      if (fitSize(el)) return;
+    }
+    // 3 位有效数字都放不下的只会是极小的数（如 0.000000005 吨）：在这个精度下就是约等于 0
+    if (Math.abs(x) < 1) { el.value = '≈0'; fitSize(el); }
+  }
+
+  function recompute() {
+    var has = state.unitId !== null && state.value !== null;
+    var r = has ? C.convertAll(state.value, state.unitId, state.sub) : null;
+    D.units.forEach(function (u) {
+      var el = inputs[u.id], cell = el.parentNode;
+      cell.classList.toggle('src', u.id === state.unitId);
+      if (u.id !== state.unitId) { show(el, has ? r[u.id] : null); cell.classList.remove('invalid'); }
+      else fitSize(el);
     });
-  }
-  function sub() { return C.subById[state.substanceId]; }
-  function fmtRange(r, unit) { return r ? C.formatNumber(r[0]) + '–' + C.formatNumber(r[1]) + ' ' + unit : ''; }
-
-  // ---------- 物质选择 ----------
-  function renderSubs() {
-    $('subs').innerHTML = D.substances.map(function (s) {
-      return '<button type="button" class="sub-btn" data-id="' + s.id + '" aria-pressed="' + (s.id === state.substanceId) + '">' +
-        '<span class="em" aria-hidden="true">' + s.emoji + '</span><span>' + esc(s.name) + '</span></button>';
-    }).join('');
-    var s = sub();
-    $('density').innerHTML = '1 毫升' + esc(s.name) + ' ≈ <b>' + C.formatNumber(s.density) + ' 克</b>' +
-      (s.range ? '（' + fmtRange(s.range, '').trim() + '）' : '') + ' · 数据：FAO';
-    $('warn').hidden = !s.granular;
-    if (s.granular) $('warn').textContent = s.name + '是粉粒状的，装得松还是压得紧，同一杯能差两三成，重量 ⇄ 容量的结果只能当个大概。';
-  }
-  $('subs').addEventListener('click', function (e) {
-    var b = e.target.closest('.sub-btn');
-    if (!b) return;
-    state.substanceId = b.dataset.id;
-    renderSubs();
-    recompute();
-  });
-
-  // ---------- 单位列表 ----------
-  function renderGroups() {
-    $('groups').innerHTML = D.groups.map(function (g) {
-      var rows = D.units.filter(function (u) { return u.group === g.id; }).map(function (u) {
-        var id = 'u_' + u.id;
-        return '<div class="row" data-unit="' + u.id + '">' +
-          '<label for="' + id + '">' + esc(u.name) + (u.note ? '<small>' + esc(u.note) + '</small>' : '') + '</label>' +
-          '<input id="' + id + '" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" ' +
-          'spellcheck="false" placeholder="0" data-unit="' + u.id + '">' +
-          '</div>';
-      }).join('');
-      return '<div class="group" data-group="' + g.id + '">' +
-        '<div class="group-title">' + esc(g.name) + '</div>' +
-        '<div class="rows">' + rows + '</div>' +
-        '<div class="group-foot" data-foot="' + g.id + '" hidden></div></div>';
-    }).join('');
-    D.units.forEach(function (u) { inputs[u.id] = $('u_' + u.id); });
+    D.groups.forEach(function (g) {
+      if (!g.composite) return;
+      var c = has ? C.formatComposite(r.g, g.composite) : '';
+      document.querySelector('[data-comp="' + g.id + '"]').textContent = c ? (g.composite === 'jin_old' ? '旧制 ' + c : c) : '';
+    });
+    var refer = $('refer');
+    if (!has) { refer.textContent = '在任意一格输入数字，其余单位自动算出'; return; }
+    var sug = C.suggestItems({ g: r.g, ml: r.ml }).map(function (s) { return '<b>' + esc(C.suggestionText(s)) + '</b>'; });
+    var sub = C.subById[state.sub];
+    refer.innerHTML = (sug.length ? '相当于 ' + sug.join('、') : '') +
+      (sub.granular ? '<span class="warn">' + esc(sub.name) + '装得松紧不同，克 ⇄ 毫升只是大概</span>' : '');
   }
 
+  // ---------- 交互 ----------
   $('groups').addEventListener('input', function (e) {
     var el = e.target;
     if (!el.dataset.unit) return;
+    var cell = el.parentNode;
+    if (el.value.trim() === '') { cell.classList.remove('invalid'); state.unitId = null; state.value = null; recompute(); return; }
     var v = C.parseInput(el.value);
-    var row = el.closest('.row');
-    if (el.value.trim() === '') { row.classList.remove('invalid'); setSource(null, null); return; }
-    if (v === null) { row.classList.add('invalid'); return; }   // 打到一半的非法输入：只标红，不动别的格子
-    row.classList.remove('invalid');
-    setSource(el.dataset.unit, v);
+    if (v === null) { cell.classList.add('invalid'); fitSize(el); return; }   // 打到一半的非法输入：只标红，不动别的格子
+    cell.classList.remove('invalid');
+    state.unitId = el.dataset.unit; state.value = v;
+    recompute();
   });
-  // 点进一格就全选：接着打字是替换而不是往旧数字后面追加（iOS 真机行为未验证）
+  // 点格子空白处也能进入输入
+  $('groups').addEventListener('click', function (e) {
+    var cell = e.target.closest('.cell');
+    if (cell && e.target.tagName !== 'INPUT') cell.querySelector('input').focus();
+  });
+  // 进入一格就全选：接着打字是替换而不是追加（iOS 真机行为未验证）
   $('groups').addEventListener('focusin', function (e) {
     var el = e.target;
     if (!el.dataset.unit || !el.value) return;
     requestAnimationFrame(function () { try { el.setSelectionRange(0, el.value.length); } catch (err) {} });
   });
-  $('groups').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.dataset.unit) e.target.blur();
+  $('groups').addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.dataset.unit) e.target.blur(); });
+  $('sub').addEventListener('change', function (e) { state.sub = e.target.value; recompute(); });
+  $('btnReset').addEventListener('click', function () {
+    D.units.forEach(function (u) { inputs[u.id].value = ''; inputs[u.id].parentNode.classList.remove('invalid'); });
+    state.unitId = null; state.value = null; recompute();
   });
+  window.addEventListener('resize', recompute);   // 格子宽度变了，字号和位数要重新试
 
-  function setSource(unitId, value) {
-    state.unitId = unitId; state.value = value;
-    recompute();
-  }
-
-  function recompute() {
-    var has = state.unitId !== null && state.value !== null;
-    var r = has ? C.convertAll(state.value, state.unitId, state.substanceId) : null;
-    var srcKind = has ? C.unitById[state.unitId].kind : null;
-
-    D.units.forEach(function (u) {
-      var el = inputs[u.id];
-      if (u.id === state.unitId) return;                  // 正在编辑的那格保留用户的原文
-      el.value = has ? C.formatNumber(r[u.id]) : '';
-      el.closest('.row').classList.remove('invalid');
-    });
-
-    // 组脚注：市制/旧制给组合写法；跨类且粉粒状时提示「约」
-    D.groups.forEach(function (g) {
-      var foot = document.querySelector('[data-foot="' + g.id + '"]');
-      var html = '';
-      if (has && g.id === 'shi') {
-        var c = C.formatComposite(r.g, 'jin');
-        if (c) html = '合起来是 <b>' + c + '</b>';
-      } else if (has && g.id === 'old') {
-        var c2 = C.formatComposite(r.g, 'jin_old');
-        if (c2) html = '旧制合起来是 <b>' + c2 + '</b>（一斤十六两）';
-      }
-      var gKind = D.units.filter(function (u) { return u.group === g.id; })[0].kind;
-      if (has && r.approx && gKind !== srcKind) {
-        html += (html ? '<br>' : '') + '按' + esc(sub().name) + '的平均密度估算，只能当个大概';
-      }
-      foot.innerHTML = html;
-      foot.hidden = !html;
-    });
-
-    renderSummary(has ? r : null);
-  }
-
-  // ---------- 结果摘要 + 物品联动 ----------
-  // 「一罐可乐」数个数时要去掉「一罐」，否则会读成「1.5 罐一罐可乐」
-  function countName(it) { return it.name.indexOf('一' + it.unit) === 0 ? it.name.slice(1 + it.unit.length) : it.name; }
-  function ratioText(s) {
-    var it = s.item, n, noun = countName(it);
-    if (/^\d/.test(noun)) noun = ' ' + noun;   // 「8 枚 1 元硬币」，别粘成「8 枚1 元硬币」
-    if (s.exactish && s.rounded === 0.5) return '半' + it.unit + noun;
-    if (s.exactish) n = C.formatNumber(s.rounded);
-    else n = s.ratio >= 10 ? String(Math.round(s.ratio)) : C.formatNumber(Math.round(s.ratio * 10) / 10);
-    return n + ' ' + it.unit + noun;
-  }
-  function renderSummary(r) {
-    var box = $('summary');
-    if (!r) {
-      box.innerHTML = '<div class="summary-hint">在下面任意一格输入数字，其余单位会跟着算出来，这里会告诉你它大概相当于什么。</div>';
-      return;
-    }
-    var comp = C.formatComposite(r.g, 'jin');
-    var main = comp || (C.formatNumber(r.g) + ' 克');
-    var subline = C.formatNumber(r.g) + ' 克 · ' + C.formatNumber(r.ml) + ' 毫升' + (r.approx ? '（约）' : '');
-    var sug = C.suggestItems({ g: r.g, ml: r.ml });
-    var chips = sug.map(function (s) {
-      return '<button type="button" class="chip" data-item="' + s.item.id + '">' +
-        '<span aria-hidden="true">' + s.item.emoji + '</span>≈ ' + esc(ratioText(s)) + '</button>';
-    }).join('');
-    box.innerHTML = '<div class="summary-main">' + esc(main) + '</div>' +
-      '<div class="summary-sub">' + esc(subline) + '</div>' +
-      (chips ? '<div class="chips">' + chips + '</div>' : '');
-  }
-  $('summary').addEventListener('click', function (e) {
-    var b = e.target.closest('.chip');
-    if (!b) return;
-    var it = D.items.filter(function (x) { return x.id === b.dataset.item; })[0];
-    selectTab(it.kind);
-    var row = document.querySelector('.item[data-item="' + it.id + '"]');
-    scrollToEl(row, 'center');
-    flash(row);
-  });
-
-  // ---------- 图鉴 ----------
+  // ---------- 生活参照 ----------
   var tabKind = 'mass';
-  function describe(it) {
-    var unit = it.kind === 'mass' ? '克' : '毫升';
-    var v = '约 <b>' + C.formatNumber(it.value) + ' ' + unit + '</b>' +
-      (it.range ? '（' + fmtRange(it.range, unit) + '）' : '');
-    var alt = it.kind === 'mass'
-      ? (it.value >= 25 ? C.formatComposite(it.value, 'jin') : C.formatNumber(it.value / 5) + '钱')
-      : (it.value >= 1000 ? C.formatNumber(it.value / 1000) + ' 升' : '');
-    return v + (alt ? ' ≈ ' + esc(alt) : '');
-  }
-  // 标签已经说了「包装规格 / 经验值」，出处行只留标签之外的信息
-  function srcNote(it) {
-    if (it.level === 'label') { var m = it.source.match(/）（(.*)）$/); return m ? m[1] : ''; }   // 「…（以包装标注为准）（18.9 升）」只留后一个括号
-    if (it.level === 'estimate') return it.source.replace(/^经验值（?/, '').replace(/）$/, '');
-    return it.source;
-  }
   function renderItems() {
-    var list = D.items.filter(function (it) { return it.kind === tabKind; })
-      .slice().sort(function (a, b) { return a.value - b.value; });
+    var list = D.items.filter(function (it) { return it.kind === tabKind; }).sort(function (a, b) { return a.value - b.value; });
     $('items').innerHTML = list.map(function (it) {
-      var est = it.level === 'estimate';
-      return '<button type="button" class="item" role="listitem" data-item="' + it.id + '" aria-label="' +
-        esc(it.name + '，填入换算') + '">' +
+      var unit = it.kind === 'mass' ? '克' : '毫升';
+      var alt = it.kind === 'mass'
+        ? (it.value >= 25 ? C.formatComposite(it.value, 'jin') : '')
+        : (it.value >= 1000 ? C.formatNumber(it.value / 1000) + ' 升' : C.formatComposite(it.value, 'jin') + '（按水）');
+      return '<button type="button" class="item" role="listitem" data-item="' + it.id + '" aria-label="' + esc(it.name) + '，填入换算">' +
         '<span class="em" aria-hidden="true">' + it.emoji + '</span>' +
-        '<span class="body"><span class="name">' + esc(it.name) +
-        '<span class="badge' + (est ? ' est' : '') + '">' + esc(D.levels[it.level]) + '</span></span>' +
-        '<span class="val" style="display:block">' + describe(it) + '</span>' +
-        (srcNote(it) ? '<span class="src" style="display:block">' + esc(srcNote(it)) + '</span>' : '') + '</span>' +
+        '<span class="body"><span class="name">' + esc(it.name) + '<span class="badge">' + esc(D.levels[it.level]) + '</span></span>' +
+        '<span class="val"><b>' + C.formatNumber(it.value) + ' ' + unit + '</b>' + (alt ? ' ≈ ' + esc(alt) : '') + '</span></span>' +
         '<span class="go" aria-hidden="true">›</span></button>';
     }).join('');
   }
@@ -475,62 +304,16 @@
     if (!b) return;
     var it = D.items.filter(function (x) { return x.id === b.dataset.item; })[0];
     var unitId = it.kind === 'mass' ? 'g' : 'ml';
+    D.units.forEach(function (u) { inputs[u.id].parentNode.classList.remove('invalid'); });
     inputs[unitId].value = C.formatNumber(it.value);
-    setSource(unitId, it.value);
-    scrollToEl($('cardConvert'), 'start');
-    flash(inputs[unitId].closest('.row'));
+    state.unitId = unitId; state.value = it.value;
+    recompute();
+    var smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
   });
 
-  // ---------- 口诀 ----------
-  function renderTips() {
-    $('tips').innerHTML = D.tips.map(function (t) {
-      return '<details><summary>' + esc(t.text) + '</summary><div class="tip-body">' + esc(t.detail) +
-        '<div class="tip-src">出处：' + esc(t.source) + '</div></div></details>';
-    }).join('');
-  }
-
-  // ---------- 通用 ----------
-  function reduced() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-  function scrollToEl(el, block) { if (el) el.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: block }); }
-  function flash(el) {
-    if (!el) return;
-    el.classList.add('flash');
-    setTimeout(function () { el.classList.remove('flash'); }, 900);
-  }
-
-  $('btnReset').addEventListener('click', function () {
-    D.units.forEach(function (u) { inputs[u.id].value = ''; inputs[u.id].closest('.row').classList.remove('invalid'); });
-    setSource(null, null);
-  });
-
-  // 吸顶导航：照搬 data-Calculation 模块六
-  function setupSectionNav() {
-    var nav = $('sectionNav');
-    var items = Array.prototype.slice.call(nav.querySelectorAll('.nav-item'));
-    var cards = items.map(function (b) { return $(b.dataset.target); });
-    function syncOffset() {
-      document.documentElement.style.setProperty('--nav-offset', (nav.getBoundingClientRect().height + 16) + 'px');
-    }
-    syncOffset();
-    window.addEventListener('resize', syncOffset);
-    function mark(el) { items.forEach(function (b, i) { b.setAttribute('aria-current', cards[i] === el ? 'true' : 'false'); }); }
-    mark(cards[0]);
-    nav.addEventListener('click', function (e) {
-      var b = e.target.closest('.nav-item');
-      if (b) scrollToEl($(b.dataset.target), 'start');
-    });
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) { if (e.isIntersecting) mark(e.target); });
-    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
-    cards.forEach(function (c) { io.observe(c); });
-  }
-
-  renderSubs();
-  renderGroups();
-  renderItems();
-  renderTips();
+  selectTab('mass');
   recompute();
-  setupSectionNav();
   // 正在输入时不接管下拉：刷新会把刚输入的数清掉
   window.PullToRefresh.setupPullToRefresh({
     isBlocked: function () { var a = document.activeElement; return !!a && a.tagName === 'INPUT'; }

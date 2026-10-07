@@ -47,6 +47,23 @@
     return s;
   }
 
+  // 格子里用的写法：sig 位有效数字；1 亿以上改成「亿 / 万亿」，否则 3 列网格的格子里放不下 12 位以上的整数
+  //   （2026-10-07 实测：99999999 吨 → 99999999000000 克，字号缩到 12px 也会被截断）
+  function formatCell(x, sig) {
+    sig = sig || 6;
+    if (x === 0) return '0';
+    if (!isFinite(x)) return '';
+    var ax = Math.abs(x);
+    if (ax < 1e-9) return '≈0';
+    if (ax >= 1e12) return Number((x / 1e12).toPrecision(sig)) + '万亿';
+    if (ax >= 1e8) return Number((x / 1e8).toPrecision(sig)) + '亿';
+    var intDigits = ax >= 1 ? Math.floor(Math.log10(ax)) + 1 : 1;
+    var n = Number(x.toPrecision(Math.max(sig, intDigits)));
+    var str = String(n);
+    if (/e/i.test(str)) str = n.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 20 });
+    return str;
+  }
+
   // 组合写法。全程用整数计数避免浮点误差：
   //   市制：以 0.1 钱（= 0.5 克）为最小单位；旧制：以 0.1 两（= 3.125 克）为最小单位
   function formatComposite(g, system) {
@@ -75,13 +92,13 @@
 
   // 「≈ N 个某物品」推荐。
   //   好记 = 倍数在 [0.5, 20] 内、接近整数或半个；倍数离 1 越远越难想象，要扣分。
-  //   扣分权重 LOG_W：0.02 时「50 克 ≈ 8.33 枚硬币」会压过「≈ 0.9 个鸡蛋」，调到 0.06 才让小倍数优先（2026-10-06 按样例调）。
-  //   为了拉开量级，入选物品两两之间的典型值至少差 1.6 倍（否则「2 个苹果、2.5 根香蕉」等于说了两遍）。
-  var RATIO_MIN = 0.5, RATIO_MAX = 20, SPREAD = 1.6, MAX_PICK = 3, LOG_W = 0.06;
+  //   扣分权重 LOG_W：0.02 时「50 克 ≈ 8.33 枚硬币」会压过「≈ 0.9 个鸡蛋」，调到 0.06 才让小倍数优先（2026-10-06 按当时的物品表调）。
+  //   为了拉开量级，入选物品两两之间的典型值至少差 1.6 倍（否则「1.5 罐可乐、2 盒牛奶」等于说了两遍）。
+  //   MAX_PICK=2：2026-10-07 改版后参照只占换算区下面一行，放两个正好
+  var RATIO_MIN = 0.5, RATIO_MAX = 20, SPREAD = 1.6, MAX_PICK = 2, LOG_W = 0.06;
   function suggestItems(q) {
     var cands = [];
     D.items.forEach(function (it) {
-      if (!it.linkable) return;
       var have = it.kind === 'mass' ? q.g : q.ml;
       if (!(have > 0)) return;
       var r = have / it.value;
@@ -103,6 +120,17 @@
     return picked;
   }
 
+  // 「1.5 罐可乐」「半瓶矿泉水」：物品名以「一+量词」开头时去掉前缀再数，否则会读成「1.5 罐一罐可乐」
+  function suggestionText(s) {
+    var it = s.item, n;
+    var noun = it.name.indexOf('一' + it.unit) === 0 ? it.name.slice(1 + it.unit.length) : it.name;
+    if (/^[0-9A-Za-z]/.test(noun)) noun = ' ' + noun;          // 「2 张 A4 纸」，别粘成「2 张A4 纸」
+    if (s.exactish && s.rounded === 0.5) return '半' + it.unit + noun.trim();
+    if (s.exactish) n = formatNumber(s.rounded);
+    else n = s.ratio >= 10 ? String(Math.round(s.ratio)) : formatNumber(Math.round(s.ratio * 10) / 10);
+    return n + ' ' + it.unit + noun;
+  }
+
   // 「1,5」「1，5」都当小数；空、负数、非数字一律 null
   function parseInput(s) {
     s = String(s == null ? '' : s).trim().replace(/[，,]/g, '.');
@@ -113,8 +141,8 @@
 
   var WV = {
     toBase: toBase, fromBase: fromBase, convertAll: convertAll,
-    formatNumber: formatNumber, formatComposite: formatComposite,
-    suggestItems: suggestItems, parseInput: parseInput,
+    formatNumber: formatNumber, formatCell: formatCell, formatComposite: formatComposite,
+    suggestItems: suggestItems, suggestionText: suggestionText, parseInput: parseInput,
     unitById: unitById, subById: subById
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = WV;
