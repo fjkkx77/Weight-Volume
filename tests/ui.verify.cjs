@@ -77,13 +77,50 @@ async function run(W, H, dark) {
     if (W >= 390) ok(`${tag} 换算区一屏看全（底边 ${bottom} ≤ ${Math.round(H * 0.85)}）`, bottom <= H * 0.85, bottom);
     else console.log(`  ${tag} 换算区底边 ${bottom}（屏高 ${H}，不判）`);
 
-    // 超长 / 超小的数字也要显示得下
-    for (const [u, t] of [['t', '99999999'], ['qian', '0.001']]) {
+    // 「更多单位」：默认收起、按钮在首屏内；展开后 36 格可见、标签不截断；状态刷新后记得
+    ok(`${tag} 更多单位默认收起`, await c.ev(`document.getElementById('more').hidden && document.getElementById('btnMore').getAttribute('aria-expanded')==='false'`));
+    const moreBtn = await c.ev(`Math.round(document.getElementById('btnMore').getBoundingClientRect().bottom)`);
+    if (W >= 390) ok(`${tag} 更多按钮在首屏内（${moreBtn} ≤ ${Math.round(H * 0.85)}）`, moreBtn <= H * 0.85, moreBtn);
+    await c.ev(`document.getElementById('btnMore').click()`);
+    await sleep(100);
+    const vis = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height>0).length`);
+    ok(`${tag} 展开后 36 格可见`, vis === 36, vis);
+    const cut2 = await c.ev(`[...document.querySelectorAll('#more .cell label')].filter(l=>l.scrollWidth>l.clientWidth).map(l=>l.textContent)`);
+    ok(`${tag} 更多单位的名称没被截断`, cut2.length === 0, cut2);
+    const small2 = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height<44).length`);
+    ok(`${tag} 更多单位格子 ≥44px`, small2 === 0, small2);
+    ok(`${tag} 展开后按钮变成收起`, (await c.ev(`document.getElementById('moreText').textContent`)) === '收起');
+    // 在「更多」里输入：起点格换过去，首屏也跟着算
+    await typeInto(c, 'dou', '1');
+    ok(`${tag} 1 斗 = 10 升`, (await val(c, 'l')) === '10');
+    ok(`${tag} 1 斗 = 20 斤（按水）`, (await val(c, 'jin')) === '20');
+    ok(`${tag} 起点格在更多区`, (await c.ev(`[...document.querySelectorAll('.cell.src')].map(e=>e.dataset.unit).join()`)) === 'dou');
+    await typeInto(c, 'ozt', '1');
+    ok(`${tag} 1 金衡盎司 = 31.1035 克`, (await val(c, 'g')) === '31.1035');
+
+    // 超长 / 超小的数字也要显示得下（展开状态，覆盖全部 57 格）
+    for (const [u, t] of [['t', '99999999'], ['qian', '0.001'], ['ug', '0.001'], ['ton_l', '99999999']]) {
       await typeInto(c, u, t);
       const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
       ok(`${tag} ${u}=${t} 时数字不被截断`, clipped.length === 0, clipped);
     }
     await overflow('超长数字');
+    await c.goto(URL);
+    ok(`${tag} 展开状态刷新后记得`, await c.ev(`!document.getElementById('more').hidden`));
+    // 刷新后字号适配要在可见状态下重新算过：极端值仍不能被截断
+    await typeInto(c, 't', '99999999');
+    const clipped3 = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+    ok(`${tag} 刷新后展开区数字不被截断`, clipped3.length === 0, clipped3);
+    await c.ev(`document.getElementById('btnMore').click()`);
+    ok(`${tag} 再点收起`, await c.ev(`document.getElementById('more').hidden`));
+    // 收起状态下输入极端值（此时展开区格子宽 0，字号适配会误判），再展开：必须重算，不能被截断
+    await typeInto(c, 'kg', '99999999');
+    await c.ev(`document.getElementById('btnMore').click()`);
+    await sleep(100);
+    const clipped4 = await c.ev(`[...document.querySelectorAll('#more .cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+    ok(`${tag} 收起时输入、展开后不被截断`, clipped4.length === 0, clipped4);
+    await c.ev(`document.getElementById('btnMore').click()`);
+    await c.ev(`document.getElementById('btnReset').click()`);
 
     // 切到面粉：1 美制杯 ≈ 137.2 克，并提示只是大概
     await setSub(c, 'flour');

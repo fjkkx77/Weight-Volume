@@ -55,6 +55,12 @@
     if (!isFinite(x)) return '';
     var ax = Math.abs(x);
     if (ax < 1e-9) return '≈0';
+    // 1 亿亿以上（如 99999999 吨换成微克 = 10²⁰）「万亿」也放不下，改成 1×10²⁰ 这种写法
+    if (ax >= 1e16) {
+      var exp = Math.floor(Math.log10(ax)), m = Number((x / Math.pow(10, exp)).toPrecision(Math.min(sig, 4)));
+      if (Math.abs(m) >= 10) { m = m / 10; exp += 1; }
+      return m + '×10' + String(exp).replace(/\d/g, function (d) { return '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]; });
+    }
     if (ax >= 1e12) return Number((x / 1e12).toPrecision(sig)) + '万亿';
     if (ax >= 1e8) return Number((x / 1e8).toPrecision(sig)) + '亿';
     var intDigits = ax >= 1 ? Math.floor(Math.log10(ax)) + 1 : 1;

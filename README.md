@@ -1,6 +1,6 @@
 # 斤两换算（Weight-Volume）
 
-斤、两、克、毫升、杯、磅等 21 个重量与容量单位的换算，一屏看全。可以按物质（水、牛奶、面粉……）在重量和容量之间互换，并用包装标称的物品作参照，例如「相当于 1.5 罐可乐」。
+斤、两、克、毫升、立方厘米、杯、磅、品脱、斗、合等 57 个重量与容量单位的换算：常用的 21 个一屏看全，其余 36 个收在「更多单位」里。可以按物质（水、牛奶、面粉……）在重量和容量之间互换，并用包装标称的物品作参照，例如「相当于 1.5 罐可乐」。
 
 在线地址：<https://fjkkx77.github.io/Weight-Volume/>
 灵感来源：[data-Calculation](https://fjkkx77.github.io/data-Calculation/)
@@ -33,7 +33,8 @@ node tests/ui.verify.cjs [截图目录]
 |---|---|
 | 市斤 = 500 克、旧制一斤十六两 | 1929《度量衡法》第五、六条（[维基文库](https://zh.wikisource.org/wiki/度量衡法_(民國18年))） |
 | 一斤改为十两 | 1959 国务院《关于统一我国计量制度的命令》（[维基文库](https://zh.wikisource.org/wiki/国务院关于统一我国计量制度的命令)） |
-| 磅、盎司、美制杯 / 液量盎司 / 加仑、英制加仑 | [NIST SP 811 附录 B.9](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9) |
+| 市制容量（石、斗、升、合、勺、撮）、担 | 1929《度量衡法》第五、六条 |
+| 磅、盎司、格令、克拉、美制杯 / 液盎司 / 加仑、英制加仑；其余英美单位由这些精确值按定义推导（如金衡盎司 = 480 格令、短吨 = 2000 磅） | [NIST SP 811 附录 B.9](https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9) |
 | 港斤 604.78982 克 | 香港《度量衡条例》第 68 章 |
 | 台斤 600 克 | 台湾市场通行值（第三方资料，**未取得官方条文**，可信度中） |
 | 各种物质的密度 | FAO/INFOODS Density Database v2.0 |

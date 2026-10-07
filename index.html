@@ -80,7 +80,16 @@
   .cell:focus-within:not(.src) { border-color: rgba(var(--accent-rgb), .45); }
   .cell.invalid input { color: var(--invalid); }
 
-  .refer { margin-top: 12px; font-size: 14px; color: var(--text-2); min-height: 20px; overflow-wrap: anywhere; }
+  /* 参照文字和「更多单位」按钮共用一行：按钮不另占一行，首屏才放得下 */
+  .refer-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .refer { flex: 1; min-width: 0; font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; }
+  .btn-more { flex: none; min-height: 44px; padding: 0 12px; border: none; border-radius: 12px; background: var(--cell);
+    color: var(--accent); font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-more .chev { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
+  .btn-more[aria-expanded="true"] .chev { transform: translateY(2px) rotate(-135deg); }
+  .btn-more:active { background: var(--press); }
+  #more { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
   .refer b { color: var(--text); font-weight: 700; }
   .refer .warn { color: var(--warn); display: block; margin-top: 2px; }
 
@@ -148,8 +157,12 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
       </button>
     </div>
-    <div id="groups"></div>
-    <div class="refer" id="refer" aria-live="polite"></div>
+    <div id="groups" class="units"></div>
+    <div class="refer-row">
+      <div class="refer" id="refer" aria-live="polite"></div>
+      <button type="button" class="btn-more" id="btnMore" aria-expanded="false" aria-controls="more"><span id="moreText">更多单位</span><span class="chev" aria-hidden="true"></span></button>
+    </div>
+    <div id="more" class="units" hidden></div>
   </section>
 
   <section class="card" id="cardItems" aria-labelledby="ttlItems">
@@ -190,14 +203,18 @@
     return '<option value="' + s.id + '">按' + esc(s.name) + '</option>';
   }).join('');
 
-  $('groups').innerHTML = D.groups.map(function (g) {
+  // 首屏常用组进 #groups，其余进可展开的 #more
+  function groupsHtml(tier) { return D.groups.filter(function (g) { return g.tier === tier; }).map(function (g) {
     var cells = D.units.filter(function (u) { return u.group === g.id; }).map(function (u) {
       return '<div class="cell" data-unit="' + u.id + '"><label for="u_' + u.id + '">' + esc(u.label) + '</label>' +
         '<input id="u_' + u.id + '" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" data-unit="' + u.id + '"></div>';
     }).join('');
     return '<div class="group" data-group="' + g.id + '"><div class="cap"><span>' + esc(g.name) + '</span>' +
       (g.composite ? '<b data-comp="' + g.id + '"></b>' : '') + '</div><div class="grid">' + cells + '</div></div>';
-  }).join('');
+  }).join(''); }
+  $('groups').innerHTML = groupsHtml('common');
+  $('more').innerHTML = groupsHtml('more');
+  var moreCount = $('more').querySelectorAll('.cell').length;
   D.units.forEach(function (u) { inputs[u.id] = $('u_' + u.id); });
 
   // 数字放不下时：先保持 6 位有效数字缩字号（17 → 12px），还放不下再减有效位数（6 → 3）。
@@ -243,7 +260,20 @@
   }
 
   // ---------- 交互 ----------
-  $('groups').addEventListener('input', function (e) {
+  function onUnits(type, fn) { $('groups').addEventListener(type, fn); $('more').addEventListener(type, fn); }
+
+  // 「更多单位」展开/收起，记住上次的状态（存不了就每次默认收起）
+  var MORE_KEY = 'wv.moreOpen';
+  function setMore(open) {
+    $('more').hidden = !open;
+    $('btnMore').setAttribute('aria-expanded', String(open));
+    $('moreText').textContent = open ? '收起' : '更多 ' + moreCount + ' 个';
+    try { localStorage.setItem(MORE_KEY, open ? '1' : '0'); } catch (err) {}
+    // 收起时格子宽度是 0，字号适配会误判「放得下」；展开后必须重算一遍
+    if (open) recompute();
+  }
+  $('btnMore').addEventListener('click', function () { setMore($('more').hidden); });
+  onUnits('input', function (e) {
     var el = e.target;
     if (!el.dataset.unit) return;
     var cell = el.parentNode;
@@ -255,17 +285,17 @@
     recompute();
   });
   // 点格子空白处也能进入输入
-  $('groups').addEventListener('click', function (e) {
+  onUnits('click', function (e) {
     var cell = e.target.closest('.cell');
     if (cell && e.target.tagName !== 'INPUT') cell.querySelector('input').focus();
   });
   // 进入一格就全选：接着打字是替换而不是追加（iOS 真机行为未验证）
-  $('groups').addEventListener('focusin', function (e) {
+  onUnits('focusin', function (e) {
     var el = e.target;
     if (!el.dataset.unit || !el.value) return;
     requestAnimationFrame(function () { try { el.setSelectionRange(0, el.value.length); } catch (err) {} });
   });
-  $('groups').addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.dataset.unit) e.target.blur(); });
+  onUnits('keydown', function (e) { if (e.key === 'Enter' && e.target.dataset.unit) e.target.blur(); });
   $('sub').addEventListener('change', function (e) { state.sub = e.target.value; recompute(); });
   $('btnReset').addEventListener('click', function () {
     D.units.forEach(function (u) { inputs[u.id].value = ''; inputs[u.id].parentNode.classList.remove('invalid'); });
@@ -314,6 +344,9 @@
 
   selectTab('mass');
   recompute();
+  var savedMore = false;
+  try { savedMore = localStorage.getItem(MORE_KEY) === '1'; } catch (err) {}
+  setMore(savedMore);
   // 正在输入时不接管下拉：刷新会把刚输入的数清掉
   window.PullToRefresh.setupPullToRefresh({
     isBlocked: function () { var a = document.activeElement; return !!a && a.tagName === 'INPUT'; }

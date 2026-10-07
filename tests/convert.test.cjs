@@ -23,6 +23,34 @@ test('定义值与出处一致', () => {
   assert.ok(close(C.toBase(16, 'liang_old'), C.toBase(1, 'jin')));
 });
 
+// 每条都是两个独立写进 data.js 的系数之间的定义关系：任何一个抄错都会在这里对不上
+test('新增单位的定义关系（57 个单位扩充）', () => {
+  const eq = (a, ua, b, ub) => assert.ok(close(C.toBase(a, ua), C.toBase(b, ub)), `${a} ${ua} ≠ ${b} ${ub}`);
+  // 市制重量：1929《度量衡法》第六条 + 1959 十两制
+  eq(1, 'dan', 100, 'jin'); eq(1, 'qian', 10, 'fen'); eq(1, 'fen', 10, 'li');
+  // 公制
+  eq(1, 'g', 1000, 'mg'); eq(1, 'mg', 1000, 'ug'); eq(1, 'g', 5, 'ct');
+  eq(1, 'l', 1, 'dm3'); eq(1, 'ml', 1, 'cm3'); eq(1, 'cm3', 1000, 'mm3'); eq(1, 'mm3', 1, 'ul');
+  eq(1, 'l', 10, 'dl'); eq(1, 'dl', 10, 'cl'); eq(1, 'cl', 10, 'ml');
+  // 市制容量：石 = 10 斗 = 100 升，升 = 10 合 = 100 勺 = 1000 撮；市升 = 公升
+  eq(1, 'shi_dan', 10, 'dou'); eq(1, 'dou', 10, 'shi_l'); eq(1, 'shi_l', 10, 'ge');
+  eq(1, 'ge', 10, 'shao'); eq(1, 'shao', 10, 'cuo'); eq(1, 'shi_l', 1, 'l');
+  // 英美重量
+  eq(1, 'oz', 16, 'dr'); eq(1, 'ozt', 480, 'gr'); eq(1, 'lbt', 12, 'ozt'); eq(1, 'lb', 7000, 'gr');
+  eq(1, 'st', 14, 'lb'); eq(1, 'ton_s', 2000, 'lb'); eq(1, 'ton_l', 2240, 'lb');
+  // 英美容量
+  eq(1, 'gal_us', 8, 'pt_us'); eq(1, 'qt_us', 2, 'pt_us'); eq(1, 'pt_us', 16, 'floz_us');
+  eq(1, 'gal_uk', 8, 'pt_uk'); eq(1, 'pt_uk', 20, 'floz_uk'); eq(1, 'gal_us', 231, 'in3');
+  eq(1, 'ft3', 1728, 'in3'); assert.ok(close(C.toBase(1, 'in3'), 2.54 ** 3));
+  eq(1, 'floz_us', 6, 'tsp_us'); eq(1, 'tbsp_us', 3, 'tsp_us'); eq(1, 'cup_us', 16, 'tbsp_us');
+  eq(1, 'tbsp_m', 3, 'tsp_m');
+  // 港台
+  eq(1, 'jin_tw', 16, 'liang_tw'); eq(1, 'jin_hk', 16, 'liang_hk'); eq(1, 'liang_old', 10, 'qian_old');
+  // 精确值本身
+  assert.equal(C.toBase(1, 'gr'), 0.06479891);
+  assert.equal(C.toBase(1, 'ct'), 0.2);
+});
+
 test('每个单位来回换算一圈回到原值', () => {
   for (const u of D.units) {
     for (const x of [0.001, 1, 123.456, 1e6]) {
@@ -44,11 +72,20 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
     assert.ok(u.label && u.label.trim(), `${u.id} 缺显示名`);
     assert.ok(D.groups.some(g => g.id === u.group), `${u.id} 组不存在`);
   }
-  // 3 列网格：每组必须是 3 的倍数个，否则最后一行缺一格
+  assert.equal(D.units.length, 57, '用户 2026-10-07 定的清单是 57 个');
   for (const g of D.groups) {
+    assert.ok(['common', 'more'].includes(g.tier), `${g.id} tier 非法`);
     const n = D.units.filter(u => u.group === g.id).length;
-    assert.ok(n > 0 && n % 3 === 0, `${g.name} 有 ${n} 个单位，不是 3 的倍数`);
+    assert.ok(n > 0, `${g.name} 是空组`);
+    // 首屏 3 列网格：常用组必须是 3 的倍数个，否则最后一行缺一格（「更多」里允许不满）
+    if (g.tier === 'common') assert.ok(n % 3 === 0, `${g.name} 有 ${n} 个单位，不是 3 的倍数`);
   }
+  // 首屏只放 21 个：再多就一屏放不下（390×844 实测）
+  const common = D.units.filter(u => D.groups.find(g => g.id === u.group).tier === 'common');
+  assert.equal(common.length, 21);
+  for (const id of ['cm3', 'dm3']) assert.ok(common.some(u => u.id === id), `用户点名要的 ${id} 必须在首屏`);
+  // 320 宽下格子标签最多放 5 个字
+  for (const u of D.units) assert.ok(u.label.length <= 5, `${u.label} 太长`);
   // 同一组内的单位必须连续（页面按 units 的顺序排格子）
   const order = D.units.map(u => u.group).filter((g, i, a) => i === 0 || a[i - 1] !== g);
   assert.equal(new Set(order).size, order.length, '同组单位没有排在一起');
@@ -107,7 +144,11 @@ test('格子写法：大数用亿/万亿，小数可减位数', () => {
   assert.equal(C.formatCell(0.00000132086, 3), '0.00000132');
   assert.equal(C.formatCell(1e-10), '≈0');
   assert.equal(C.formatCell(0), '0');
-  for (const x of [1e8, 3.3e9, 7.7e13, 2e15]) assert.ok(!/e/i.test(C.formatCell(x)), String(x));
+  for (const x of [1e8, 3.3e9, 7.7e13, 2e15, 1e20, 1.23e25]) assert.ok(!/e/i.test(C.formatCell(x)), String(x));
+  assert.equal(C.formatCell(9999e12), '9999万亿');
+  assert.equal(C.formatCell(1e20), '1×10²⁰');
+  assert.equal(C.formatCell(1.02e20), '1.02×10²⁰');
+  assert.equal(C.formatCell(9.99999e16), '1×10¹⁷', '尾数四舍五入到 10 要进位');
 });
 
 test('物品推荐：恰好等于某物品时首推它', () => {
