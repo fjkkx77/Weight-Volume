@@ -70,17 +70,55 @@ async function run(W, H, dark) {
     ok(`${tag} 物品参照一行`, refer.startsWith('相当于 ') && !/(\S)一\1/.test(refer), refer);
     ok(`${tag} 水：1 升 = 2 斤`, await (async () => { await typeInto(c, 'l', '1'); return (await val(c, 'jin')) === '2'; })());
 
-    // 一屏看全：换算卡片底边不超过屏高 85%（给 Safari 地址栏/工具栏留位置，85% 是估算）。320×568 太矮，只记录不判
+    // 一屏看全：首屏 21 个常用单位的最后一行不超过屏高 85%（给 Safari 地址栏/工具栏留位置，85% 是估算）。
+    // 2026-10-08 加了吸顶导航，用户同意参照行和「更多」按钮被挤到首屏下面，所以只判 21 格。320×568 太矮，只记录不判
     await c.ev(`document.activeElement.blur(); scrollTo(0,0)`);
     await sleep(100);
-    const bottom = await c.ev(`Math.round(document.getElementById('cardConvert').getBoundingClientRect().bottom)`);
-    if (W >= 390) ok(`${tag} 换算区一屏看全（底边 ${bottom} ≤ ${Math.round(H * 0.85)}）`, bottom <= H * 0.85, bottom);
-    else console.log(`  ${tag} 换算区底边 ${bottom}（屏高 ${H}，不判）`);
+    const bottom = await c.ev(`Math.round(Math.max(...[...document.querySelectorAll('#groups .cell')].map(e=>e.getBoundingClientRect().bottom)))`);
+    if (W >= 390) ok(`${tag} 常用 21 格一屏看全（底边 ${bottom} ≤ ${Math.round(H * 0.85)}）`, bottom <= H * 0.85, bottom);
+    else console.log(`  ${tag} 常用格底边 ${bottom}（屏高 ${H}，不判）`);
+
+    // 吸顶导航：点「物品」「参照」跳到对应卡片且落在导航条下方，高亮跟着走；点「换算」回到顶
+    const navTo = async (id) => { await c.ev(`document.querySelector('.nav-item[data-target=${id}]').click()`); await sleep(1000); };
+    const cur = () => c.ev(`document.querySelector('.nav-item[aria-current=true]').dataset.target`);
+    ok(`${tag} 导航默认高亮换算`, (await cur()) === 'cardConvert');
+    for (const id of ['cardObjects', 'cardItems']) {
+      await navTo(id);
+      const g = await c.ev(`(()=>{const n=document.getElementById('sectionNav').getBoundingClientRect(),t=document.getElementById('${id}').getBoundingClientRect();return {navTop:Math.round(n.top),navBottom:Math.round(n.bottom),top:Math.round(t.top)}})()`);
+      // 参照卡在页底，滚不到正好贴住导航，只要求不被导航条盖住
+      const landed = id === 'cardItems' ? g.top >= g.navBottom : Math.abs(g.top - (g.navBottom + 8)) <= 2;
+      ok(`${tag} 导航跳到 ${id}、不被导航条盖住`, landed && g.navTop >= 0 && g.navTop <= 20, g);
+      ok(`${tag} 导航高亮跟到 ${id}`, (await cur()) === id, await cur());
+    }
+    await overflow('导航跳转后');
+    if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-3-nav.png`));
+    await navTo('cardConvert');
+    const back = { y: await c.ev('scrollY'), cur: await cur() };
+    ok(`${tag} 导航回到换算区顶`, back.y < 5 && back.cur === 'cardConvert', back);
+
+    // 生活物品：输入几个/几张，克数、斤两、换算区全部跟着算；反过来输入斤也算出个数
+    await typeInto(c, 'n_egg', '3');
+    ok(`${tag} 3 个鸡蛋 = 177 克`, (await val(c, 'g')) === '177');
+    const sum = await c.ev(`document.getElementById('objSum').textContent`);
+    ok(`${tag} 物品卡合计`, sum.includes('177 克') && sum.includes('3两5.4钱'), sum);
+    await typeInto(c, 'n_rmb100', '100');
+    ok(`${tag} 100 张百元 = 115 克`, (await val(c, 'g')) === '115');
+    await typeInto(c, 'n_a4', '500');
+    ok(`${tag} 500 张 A4 = 2494.8 克`, (await val(c, 'g')) === '2494.8');
+    await typeInto(c, 'n_cola', '3');
+    ok(`${tag} 3 罐可乐（按水）= 990 克、合计带毫升`, (await val(c, 'g')) === '990' && (await c.ev(`document.getElementById('objSum').textContent`)).includes('990 毫升'));
+    await typeInto(c, 'jin', '1');
+    ok(`${tag} 1 斤 ≈ 8.47 个鸡蛋`, (await val(c, 'n_egg')) === '8.47458', await val(c, 'n_egg'));
+    ok(`${tag} 人民币组标明非官方`, (await c.ev(`document.querySelector('[data-group=i_rmb] .cap').textContent`)).includes('非官方'));
+    // 键盘弹出时浏览器把输入框滚进视野：不能停在吸顶导航条底下
+    await c.ev(`scrollTo(0, document.body.scrollHeight)`); await sleep(100);
+    const hid = await c.ev(`(()=>{const el=document.getElementById('u_n_pingpong');el.focus();const n=document.getElementById('sectionNav').getBoundingClientRect();return {cell:Math.round(el.parentNode.getBoundingClientRect().top),nav:Math.round(n.bottom)}})()`);
+    ok(`${tag} 聚焦物品格不被导航条挡住`, hid.cell >= hid.nav, hid);
+    await c.ev(`document.activeElement.blur(); document.getElementById('btnReset').click(); scrollTo(0,0)`);
+    ok(`${tag} 归零后物品合计变回提示`, !(await c.ev(`document.getElementById('objSum').textContent`)).includes('克'));
 
     // 「更多单位」：默认收起、按钮在首屏内；展开后 36 格可见、标签不截断；状态刷新后记得
     ok(`${tag} 更多单位默认收起`, await c.ev(`document.getElementById('more').hidden && document.getElementById('btnMore').getAttribute('aria-expanded')==='false'`));
-    const moreBtn = await c.ev(`Math.round(document.getElementById('btnMore').getBoundingClientRect().bottom)`);
-    if (W >= 390) ok(`${tag} 更多按钮在首屏内（${moreBtn} ≤ ${Math.round(H * 0.85)}）`, moreBtn <= H * 0.85, moreBtn);
     await c.ev(`document.getElementById('btnMore').click()`);
     await sleep(100);
     const vis = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height>0).length`);

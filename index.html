@@ -33,6 +33,9 @@
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   [hidden] { display: none !important; }
   html, body { overscroll-behavior-y: contain; }
+  /* 聚焦输入框、导航跳转时，浏览器自动滚动都要避开吸顶导航条；高度由 JS 实测写进 --nav-offset，不写死。
+     只写在 html 的 scroll-padding 上：卡片再加 scroll-margin 会叠加成两倍（实测落点低了 68px） */
+  html { scroll-padding-top: var(--nav-offset, 76px); }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
     background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
@@ -42,6 +45,16 @@
   button, select { font: inherit; color: inherit; touch-action: manipulation; }
   .container { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .card { background: var(--card); border-radius: 20px; padding: 16px 14px; box-shadow: 0 8px 24px var(--shadow); }
+
+  /* 模块导航：照搬 data-Calculation 的吸顶分段条（白底 + 蓝色实心药丸；不用半透明毛玻璃——
+     那边实测后面的卡片会映出一块浅色，像第二个选中项）。在流里 + sticky：顶部就能用，滑下去自动吸顶 */
+  .section-nav { position: sticky; top: calc(8px + env(safe-area-inset-top)); z-index: 90;
+    display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card); box-shadow: 0 8px 24px var(--shadow); }
+  .nav-item { flex: 1; min-height: 44px; border: none; background: transparent; color: #636368;
+    font-size: 15px; font-weight: 600; border-radius: 10px; cursor: pointer; transition: background-color .25s, color .25s; }
+  @media (prefers-color-scheme: dark) { .nav-item { color: #B8B8BE; } }
+  .nav-item[aria-current="true"] { background: var(--accent); color: #FFFFFF; box-shadow: 0 4px 12px rgba(var(--accent-rgb), .35); }
+  .nav-item:not([aria-current="true"]):active { background: var(--press); }
 
   .head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .head h1, .head h2 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; flex: 1; min-width: 0;
@@ -64,6 +77,7 @@
   .cap { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
     font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 2px 5px; }
   .cap b { color: var(--accent); font-size: 13px; white-space: nowrap; }
+  .cap i { font-style: normal; color: var(--warn); white-space: nowrap; }
   .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .cell { height: 58px; border-radius: 12px; background: var(--cell); padding: 6px 10px 4px;
     display: flex; flex-direction: column; justify-content: space-between; cursor: text;
@@ -91,6 +105,9 @@
   .btn-more:active { background: var(--press); }
   #more { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
   .refer b { color: var(--text); font-weight: 700; }
+  /* 物品卡底部的合计：输入在物品格时，换算卡已滑出屏幕，这里直接给出克数和斤两 */
+  .obj-sum { margin-top: 10px; min-height: 22px; font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; }
+  .obj-sum b { color: var(--text); font-weight: 700; }
   .refer .warn { color: var(--warn); display: block; margin-top: 2px; }
 
   /* 生活参照：分段 + 列表 */
@@ -149,6 +166,12 @@
 </head>
 <body>
 <div class="container">
+  <nav class="section-nav" id="sectionNav" aria-label="模块导航">
+    <button type="button" class="nav-item" data-target="cardConvert" aria-current="true">换算</button>
+    <button type="button" class="nav-item" data-target="cardObjects" aria-current="false">物品</button>
+    <button type="button" class="nav-item" data-target="cardItems" aria-current="false">参照</button>
+  </nav>
+
   <section class="card" id="cardConvert" aria-labelledby="ttlConvert">
     <div class="head">
       <h1 id="ttlConvert">斤两换算</h1>
@@ -163,6 +186,13 @@
       <button type="button" class="btn-more" id="btnMore" aria-expanded="false" aria-controls="more"><span id="moreText">更多单位</span><span class="chev" aria-hidden="true"></span></button>
     </div>
     <div id="more" class="units" hidden></div>
+  </section>
+
+  <section class="card" id="cardObjects" aria-labelledby="ttlObjects">
+    <div class="head"><h2 id="ttlObjects">生活物品</h2></div>
+    <div id="objects" class="units"></div>
+    <div class="obj-sum" id="objSum" aria-live="polite"></div>
+    <p class="note">鸡蛋按中等蛋 59 克（商务部 SB/T 10638），A4 按 80 克复印纸；饮料和大包装按包装标称（容量类按所选物质换成重量）。人民币克重央行未公布，按百元约 1.15 克的第三方称量值、再按票面面积推算，仅供参考。</p>
   </section>
 
   <section class="card" id="cardItems" aria-labelledby="ttlItems">
@@ -210,10 +240,12 @@
         '<input id="u_' + u.id + '" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" data-unit="' + u.id + '"></div>';
     }).join('');
     return '<div class="group" data-group="' + g.id + '"><div class="cap"><span>' + esc(g.name) + '</span>' +
-      (g.composite ? '<b data-comp="' + g.id + '"></b>' : '') + '</div><div class="grid">' + cells + '</div></div>';
+      (g.composite ? '<b data-comp="' + g.id + '"></b>' : '') + (g.note ? '<i>' + esc(g.note) + '</i>' : '') +
+      '</div><div class="grid">' + cells + '</div></div>';
   }).join(''); }
   $('groups').innerHTML = groupsHtml('common');
   $('more').innerHTML = groupsHtml('more');
+  $('objects').innerHTML = groupsHtml('items');
   var moreCount = $('more').querySelectorAll('.cell').length;
   D.units.forEach(function (u) { inputs[u.id] = $('u_' + u.id); });
 
@@ -265,6 +297,12 @@
       document.querySelector('[data-comp="' + g.id + '"]').textContent = c ? (g.composite === 'jin_old' ? '旧制 ' + c : c) : '';
     });
     alignRows();
+    var sum = $('objSum');
+    if (has) {
+      var comp = C.formatComposite(r.g, 'jin');
+      sum.innerHTML = '合计 <b>' + esc(C.formatNumber(r.g)) + ' 克</b>' + (comp ? ' = <b>' + esc(comp) + '</b>' : '') +
+        (C.unitById[state.unitId].kind === 'volume' ? ' · ' + esc(C.formatNumber(r.ml)) + ' 毫升' : '');
+    } else sum.textContent = '输入几个、几张，这里显示合计多重，上面所有单位也一起算';
     var refer = $('refer');
     if (!has) { refer.textContent = '在任意一格输入数字，其余单位自动算出'; return; }
     var sug = C.suggestItems({ g: r.g, ml: r.ml }).map(function (s) { return '<b>' + esc(C.suggestionText(s)) + '</b>'; });
@@ -274,7 +312,7 @@
   }
 
   // ---------- 交互 ----------
-  function onUnits(type, fn) { $('groups').addEventListener(type, fn); $('more').addEventListener(type, fn); }
+  function onUnits(type, fn) { ['groups', 'more', 'objects'].forEach(function (id) { $(id).addEventListener(type, fn); }); }
 
   // 「更多单位」展开/收起，记住上次的状态（存不了就每次默认收起）
   var MORE_KEY = 'wv.moreOpen';
@@ -355,6 +393,35 @@
     var smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
   });
+
+  // ---------- 模块导航：点击跳转 + 高亮跟随滚动（照 data-Calculation 的 setupSectionNav）----------
+  (function setupSectionNav() {
+    var nav = $('sectionNav');
+    var btns = Array.prototype.slice.call(nav.querySelectorAll('.nav-item'));
+    var cards = btns.map(function (b) { return $(b.dataset.target); });
+    // 导航条实际多高就让卡片避多少，字号/安全区变了也不会错位
+    function syncOffset() {
+      document.documentElement.style.setProperty('--nav-offset', (nav.getBoundingClientRect().height + 16) + 'px');
+    }
+    syncOffset();
+    window.addEventListener('resize', syncOffset);
+    function mark(el) { btns.forEach(function (b, i) { b.setAttribute('aria-current', String(cards[i] === el)); }); }
+    nav.addEventListener('click', function (e) {
+      var b = e.target.closest('.nav-item');
+      if (!b) return;
+      var smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // 第一张卡回到页面最顶（scrollIntoView 会停在离顶 12px 的地方，导航条上方露一截底）
+      if (cards.indexOf($(b.dataset.target)) === 0) window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+      else $(b.dataset.target).scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    });
+    // 只认「落在视口中间那条窄带里」的卡片：比自己算 scroll 位置稳，也不会在两张卡交界处来回跳
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { if (en.isIntersecting) mark(en.target); });
+      }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+      cards.forEach(function (c) { io.observe(c); });
+    }
+  })();
 
   selectTab('mass');
   recompute();

@@ -76,9 +76,9 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
     assert.ok(u.label && u.label.trim(), `${u.id} 缺显示名`);
     assert.ok(D.groups.some(g => g.id === u.group), `${u.id} 组不存在`);
   }
-  assert.equal(D.units.length, 63, '57 个 + 为排满每行补的 6 个同族单位');
+  assert.equal(D.units.length, 78, '57 个 + 为排满每行补的 6 个同族单位 + 15 个生活物品');
   for (const g of D.groups) {
-    assert.ok(['common', 'more'].includes(g.tier), `${g.id} tier 非法`);
+    assert.ok(['common', 'more', 'items'].includes(g.tier), `${g.id} tier 非法`);
     const n = D.units.filter(u => u.group === g.id).length;
     // 用户有强迫症：每组都必须排满 3 列，不许最后一行空格子
     assert.ok(n > 0 && n % 3 === 0, `${g.name} 有 ${n} 个单位，不是 3 的倍数`);
@@ -121,6 +121,29 @@ test('图鉴只收标准规定与包装标称（用户 2026-10-07 定：不要�
     assert.ok(!it.range, `${it.id} 带了区间：既定标准应是单一数值`);
   }
   assert.ok(!('estimate' in D.levels), '经验值这一级已经撤掉');
+});
+
+test('生活物品格（用户 2026-10-08：输入几个/几张，其他单位显示多重）', () => {
+  const items = D.units.filter(u => D.groups.find(g => g.id === u.group).tier === 'items');
+  assert.equal(items.length, 15);
+  // 只有人民币允许「非官方实测」（用户点头的例外），其余仍只收标准规定 / 按标准推算 / 包装标称
+  for (const u of items) {
+    const ok = u.group === 'i_rmb' ? u.level === 'unofficial' : ['standard', 'derived', 'label'].includes(u.level);
+    assert.ok(ok, `${u.id} 级别 ${u.level}`);
+  }
+  assert.ok(D.units.filter(u => u.level === 'unofficial').every(u => u.group === 'i_rmb'), '非官方实测只许用在人民币');
+  assert.ok(D.groups.find(g => g.id === 'i_rmb').note, '人民币组要在页面上标明非官方');
+  // 用户举的三个例子
+  assert.ok(close(C.convertAll(10, 'n_egg', 'water').g, 590), '10 个中等蛋 = 590 克');
+  assert.ok(close(C.convertAll(100, 'n_a4', 'water').g, 498.96), '100 张 80 克 A4 = 498.96 克');
+  assert.ok(close(C.convertAll(100, 'n_rmb100', 'water').g, 115), '100 张百元 = 115 克');
+  // 反过来：1 斤 ≈ 8.47 个鸡蛋
+  assert.ok(close(C.convertAll(1, 'jin', 'water').n_egg, 500 / 59));
+  // 纸币按面积比：同一纸张，克重和面积成正比
+  const area = { n_rmb1: 130 * 63, n_rmb5: 135 * 63, n_rmb10: 140 * 70, n_rmb20: 145 * 70, n_rmb50: 150 * 70, n_rmb100: 155 * 77 };
+  for (const id in area) assert.ok(close(C.toBase(1, id) / area[id], 1.15 / (155 * 77)), id);
+  // 容量物品走所选物质的密度：3 罐可乐按水 = 990 克
+  assert.ok(close(C.convertAll(3, 'n_cola', 'water').g, 990));
 });
 
 test('按物质跨重量/容量换算', () => {
