@@ -1,0 +1,21 @@
+# 每次推送自动跑两套测试（2026-10-08 审查：原来测试全靠手动、且依赖本机 memory 里的脚手架）
+# 注意：GitHub Pages 的发布不等这里——测试红了网站照样上线，红了要尽快修。
+name: test
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: 换算内核 + 指纹
+        run: node --test "tests/*.test.cjs"
+      # 页面全是中文，Linux runner 默认没有中文字体，标签宽度、截断判断会失真
+      - name: 中文字体
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk
+      - name: 真实窄屏视口（3 种宽度 × 浅色 / 深色）
+        run: node tests/ui.verify.cjs

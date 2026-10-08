@@ -1,21 +1,36 @@
-// 真实窄屏视口验证（headless Chrome + CDP）
-// 用法：先 node <脚手架>/mock.js <仓库目录> 18831，再 node tests/ui.verify.cjs [截图目录]
+// 真实窄屏视口验证（headless Chrome + CDP），一条命令跑完：node tests/ui.verify.cjs [截图目录]
+//   不设 WV_URL 时自己起一个静态服务器服务仓库根目录；找不到 Chrome 时设 CHROME_PATH
 //   测线上站：WV_PROXY=<代理> WV_URL=<线上地址> node tests/ui.verify.cjs
-// 脚手架：memory/references/组件_浏览器验证脚手架/（坑清单见同目录 README）
+// 浏览器工具在 tests/lib/cdp.js（拷自 memory 里的脚手架、改成跨系统，CI 在 Linux 上跑）
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 // 测线上站时 headless Chrome 不会自动走系统代理（直连 github.io 会超时）：
-// 设了 WV_PROXY 就给脚手架起的 Chrome 补一个 --proxy-server，共用脚手架本身不改
+// 设了 WV_PROXY 就给起的 Chrome 补一个 --proxy-server
 if (process.env.WV_PROXY) {
   const cp = require('child_process');
   const spawn0 = cp.spawn;
-  cp.spawn = (cmd, args, opts) => spawn0(cmd, /chrome/i.test(cmd) ? [...args, '--proxy-server=' + process.env.WV_PROXY] : args, opts);
+  cp.spawn = (cmd, args, opts) => spawn0(cmd, /chrom/i.test(cmd) ? [...args, '--proxy-server=' + process.env.WV_PROXY] : args, opts);
 }
-const SCAFFOLD = path.join(process.env.USERPROFILE || 'C:/Users/Administrator',
-  '.claude/projects/C--Users-Administrator/memory/references/组件_浏览器验证脚手架/cdp.js');
-const { open, sleep } = require(SCAFFOLD);
+const { open, sleep } = require('./lib/cdp.js');
 
-const URL = process.env.WV_URL || 'http://127.0.0.1:18831/';
+// 本地静态服务器：只服务仓库根目录下的文件，去掉 ?v= 指纹再找文件
+const ROOT = path.join(__dirname, '..');
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
+function serve() {
+  return new Promise(res => {
+    const srv = http.createServer((req, rsp) => {
+      let p = decodeURIComponent(req.url.split('?')[0]);
+      if (p.endsWith('/')) p += 'index.html';
+      const f = path.join(ROOT, p);
+      if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rsp.writeHead(404); return rsp.end(); }
+      rsp.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+      fs.createReadStream(f).pipe(rsp);
+    }).listen(0, '127.0.0.1', () => res(srv));
+  });
+}
+
+let URL = process.env.WV_URL || '';
 const SHOTS = process.argv[2] || '';
 const results = [];
 const ok = (name, cond, info) => { results.push({ name, pass: !!cond, info }); };
@@ -268,6 +283,8 @@ async function run(W, H, dark) {
 
 (async () => {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
+  if (!URL) { const srv = await serve(); srv.unref(); URL = `http://127.0.0.1:${srv.address().port}/`; }
+  console.log('测试地址', URL);
   for (const [W, H] of [[320, 568], [390, 844], [430, 932]]) {
     for (const dark of [false, true]) await run(W, H, dark);
   }
