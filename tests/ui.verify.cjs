@@ -44,12 +44,157 @@ async function typeInto(c, unitId, text) {
 const val = (c, unitId) => c.ev(`document.getElementById('u_${unitId}').value`);
 const setSub = (c, id) => c.ev(`(()=>{const s=document.getElementById('sub');s.value='${id}';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
 
+const PAGES = require('../pages.js');
+
+// 标题切换菜单：点标题弹出、列出全部换算、当前页描边、点外面收起、不超出屏幕、每项 ≥44px
+async function switcherChecks(c, tag, W, id) {
+  await c.ev(`document.activeElement.blur(); scrollTo(0,0); document.getElementById('btnSwitch').click()`);
+  await sleep(250);
+  const m = await c.ev(`(()=>{const m=document.getElementById('switchMenu');const r=m.getBoundingClientRect();const as=[...m.querySelectorAll('a')];return {open:!m.hidden,exp:document.getElementById('btnSwitch').getAttribute('aria-expanded'),n:as.length,cur:as.filter(a=>a.getAttribute('aria-current')==='page').map(a=>a.getAttribute('href')),left:Math.round(r.left),right:Math.round(r.right),small:as.filter(a=>{const b=a.getBoundingClientRect();return b.height<44||b.width<44}).length,home:as[0].getAttribute('href'),cut:[...m.querySelectorAll('b')].filter(b=>b.scrollWidth>b.clientWidth+1).length}})()`);
+  ok(`${tag} 点标题弹出切换菜单`, m.open && m.exp === 'true', m);
+  ok(`${tag} 菜单列出目录 + 全部 ${PAGES.length} 个换算`, m.n === PAGES.length + 1 && m.home === './', m);
+  ok(`${tag} 菜单标出当前页`, m.cur.length === 1 && m.cur[0] === PAGES.find(p => p.id === id).file, m.cur);
+  ok(`${tag} 菜单不出屏、每项 ≥44px、名字不截断`, m.left >= 0 && m.right <= W && m.small === 0 && m.cut === 0, m);
+  await c.ev(`document.body.click()`);
+  await sleep(100);
+  ok(`${tag} 点外面收起菜单`, await c.ev(`document.getElementById('switchMenu').hidden && document.getElementById('btnSwitch').getAttribute('aria-expanded')==='false'`));
+}
+
+// 目录页 + 生成出来的换算页（长度 / 面积 / 温度）
+async function runCollection(W, H, dark) {
+  const tag = `${W}${dark ? '-dark' : ''}`;
+  const c = await open(W, H, 3);
+  const overflow = async (label) => {
+    const m = await c.ev('({sw:document.documentElement.scrollWidth, iw:innerWidth})');
+    ok(`${tag} 无横向溢出 @${label}`, m.sw <= W && m.iw <= W, m);
+  };
+  try {
+    await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+    // ---------- 目录 ----------
+    await c.goto(URL);
+    ok(`${tag} 目录：标题`, (await c.ev('document.title')) === '换算合集');
+    const tiles = await c.ev(`[...document.querySelectorAll('.tile')].map(a=>{const r=a.getBoundingClientRect();return {href:a.getAttribute('href'),w:Math.round(r.width),h:Math.round(r.height),bottom:Math.round(r.bottom),cut:[...a.querySelectorAll('b,small')].some(e=>e.scrollWidth>e.clientWidth+1)}})`);
+    ok(`${tag} 目录：每个换算一个格子`, tiles.map(t => t.href).join() === PAGES.map(p => p.file).join(), tiles.map(t => t.href));
+    ok(`${tag} 目录：格子 ≥44px、文字不截断`, tiles.every(t => t.w >= 44 && t.h >= 44 && !t.cut), tiles);
+    ok(`${tag} 目录：一屏看全`, Math.max(...tiles.map(t => t.bottom)) <= H, tiles.map(t => t.bottom));
+    ok(`${tag} 目录：2 列排满`, tiles.length % 2 === 0, tiles.length);
+    await overflow('目录');
+    if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-hub.png`));
+    await c.ev(`document.querySelector('.tile[data-page=length]').click()`);
+    await sleep(800);
+    ok(`${tag} 目录：点格子进入换算页`, (await c.ev('location.pathname')).endsWith('/length.html'));
+
+    for (const p of PAGES.filter(x => x.dataVar)) {
+      const t2 = `${tag} ${p.id}`;
+      await c.goto(URL + p.file);
+      await c.ev(`sessionStorage.clear(); localStorage.clear()`);
+      await c.goto(URL + p.file);
+      const n = await c.ev(`window.${p.dataVar}.units.length`);
+      ok(`${t2} 标题`, (await c.ev('document.title')) === p.title);
+      ok(`${t2} 每个单位一格`, (await c.ev(`document.querySelectorAll('.cell').length`)) === n, n);
+      ok(`${t2} CSS 已加载、每行 3 格`, await c.ev(`getComputedStyle(document.querySelector('.card')).borderRadius==='20px' && [...document.querySelectorAll('.grid')].every(g=>getComputedStyle(g).gridTemplateColumns.split(' ').length===3)`));
+      await overflow(p.id);
+      const small = await c.ev(`[...document.querySelectorAll('button, .cell')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&(r.height<44||r.width<44)}).map(e=>(e.id||e.className))`);
+      ok(`${t2} 触摸目标 ≥44px`, small.length === 0, small);
+      const cut = await c.ev(`[...document.querySelectorAll('.cell label, .cap')].filter(l=>l.scrollWidth>l.clientWidth+1).map(l=>l.textContent)`);
+      ok(`${t2} 单位名、分组标题不截断`, cut.length === 0, cut);
+      const bottom = await c.ev(`Math.round(Math.max(...[...document.querySelectorAll('#groups .cell')].map(e=>e.getBoundingClientRect().bottom)))`);
+      if (W >= 390) ok(`${t2} 常用格一屏看全（底边 ${bottom} ≤ ${Math.round(H * 0.85)}）`, bottom <= H * 0.85, bottom);
+      ok(`${t2} 提示行`, (await c.ev(`document.getElementById('refer').textContent`)).includes('任意一格'));
+      ok(`${t2} ± 键只有温度有`, (await c.ev(`!!document.getElementById('btnSign')`)) === !!p.signed);
+      await switcherChecks(c, t2, W, p.id);
+      if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-${p.id}-0-empty.png`));
+
+      // 换算正确（各页挑几个有代表性的）
+      const checks = {
+        // 极小值写成科学计数（tinySci）：1 米 = 6.685×10⁻¹² 天文单位，1 平方厘米 = 1×10⁻¹⁰ 平方千米
+        length: [['m', '1', { chi: '3', cun: '30', cm: '100', ft: '3.28084', au: '6.685×10⁻¹²' }], ['mi', '1', { m: '1609.34', km: '1.60934' }], ['li', '2', { km: '1' }]],
+        area: [['ha', '1', { mu: '15', m2: '10000', are: '100' }], ['mu', '1', { m2: '666.667', chi2: '6000' }], ['acre', '1', { m2: '4046.86' }], ['cm2', '1', { km2: '1×10⁻¹⁰' }]],
+        temperature: [['c', '37', { f: '98.6', k: '310.15' }], ['f', '-40', { c: '-40' }], ['k', '0', { c: '-273.15', f: '-459.67' }]]
+      }[p.id];
+      for (const [from, text, want] of checks) {
+        await typeInto(c, from, text);
+        const got = {};
+        for (const k in want) got[k] = await val(c, k);
+        ok(`${t2} ${text} ${from} 换算`, Object.keys(want).every(k => got[k] === want[k]), got);
+        ok(`${t2} ${text} ${from} 只有起点格高亮`, (await c.ev(`[...document.querySelectorAll('.cell.src')].map(e=>e.dataset.unit).join()`)) === from);
+      }
+      // 「更多」：展开后全部可见、每格 ≥44、名字不截断；记住展开状态
+      await c.ev(`document.activeElement.blur(); document.getElementById('btnMore').click()`);
+      await sleep(100);
+      const wantMore = await c.ev(`window.${p.dataVar}.units.filter(u=>window.${p.dataVar}.groups.find(g=>g.id===u.group).tier==='more').length`);
+      const vis = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height>=44).length`);
+      ok(`${t2} 展开后「更多」${wantMore} 格全部可见`, vis === wantMore && wantMore > 0, vis);
+      ok(`${t2} 展开后按钮变成收起`, (await c.ev(`document.getElementById('moreText').textContent`)) === '收起');
+      const cut2 = await c.ev(`[...document.querySelectorAll('#more .cell label, #more .cap')].filter(l=>l.scrollWidth>l.clientWidth+1).map(l=>l.textContent)`);
+      ok(`${t2} 更多区名称不截断`, cut2.length === 0, cut2);
+      // 极端值：数字都放得下、同一行字号一致
+      for (const [u, t] of (p.id === 'temperature' ? [['c', '99999999'], ['k', '0.001'], ['c', '-273.15']] : [[checks[0][0], '99999999'], [checks[0][0], '0.000001']])) {
+        await typeInto(c, u, t);
+        const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+        ok(`${t2} ${u}=${t} 时数字不被截断`, clipped.length === 0, clipped);
+      }
+      const uneven = await c.ev(`(()=>{const bad=[];document.querySelectorAll('.grid').forEach(g=>{const cs=[...g.children];for(let i=0;i<cs.length;i+=3){const f=cs.slice(i,i+3).map(c=>getComputedStyle(c.querySelector('input')).fontSize);if(new Set(f).size>1)bad.push(cs[i].dataset.unit+':'+f.join('/'))}});return bad})()`);
+      ok(`${t2} 同一行字号一致`, uneven.length === 0, uneven);
+      await overflow(p.id + ' 极端值');
+
+      if (p.id === 'temperature') {
+        // 负号：只打一个「-」不标红；± 键给正在输入的格子加负号、焦点不丢（键盘不收）
+        await typeInto(c, 'c', '-');
+        ok(`${t2} 只打负号不标红`, !(await c.ev(`document.querySelector('.cell[data-unit=c]').classList.contains('invalid')`)) && (await val(c, 'f')) === '');
+        await typeInto(c, 'c', '40');
+        await c.ev(`document.getElementById('btnSign').click()`);
+        ok(`${t2} ± 键变成 −40`, (await val(c, 'c')) === '-40' && (await val(c, 'f')) === '-40', [await val(c, 'c'), await val(c, 'f')]);
+        ok(`${t2} 按 ± 后焦点还在输入框`, (await c.ev(`document.activeElement.id`)) === 'u_c');
+        await c.ev(`document.getElementById('btnSign').click()`);
+        ok(`${t2} 再按 ± 变回 40`, (await val(c, 'c')) === '40' && (await val(c, 'f')) === '104');
+        // 低于绝对零度：起点标红、别的清空、提示原因
+        await typeInto(c, 'k', '-1');
+        const inv = await c.ev(`({bad:document.querySelector('.cell[data-unit=k]').classList.contains('invalid'),c:document.getElementById('u_c').value,refer:document.getElementById('refer').textContent})`);
+        ok(`${t2} −1 K 标红、不算、说明原因`, inv.bad && inv.c === '' && inv.refer.includes('绝对零度'), inv);
+        // 截图发现过：标红后用户打的「-1」被清空，只剩占位的 0
+        ok(`${t2} 标红后保留用户打的字`, (await val(c, 'k')) === '-1', await val(c, 'k'));
+        ok(`${t2} 提示行变红`, await c.ev(`document.getElementById('refer').classList.contains('bad')`));
+        await typeInto(c, 'k', '1');
+        ok(`${t2} 改回合法值后提示不再是红的`, !(await c.ev(`document.getElementById('refer').classList.contains('bad')`)) && (await val(c, 'c')) === '-272.15');
+        if (SHOTS) { await c.ev(`document.activeElement.blur(); scrollTo(0,0)`); await sleep(250); await c.vshot(path.join(SHOTS, `${tag}-${p.id}-2-invalid.png`)); }
+      }
+      // 刷新后输入还在、展开状态记得
+      const first = checks[0];
+      await typeInto(c, first[0], first[1]);
+      await c.ev(`document.activeElement.blur(); scrollTo(0,0)`);
+      if (SHOTS) { await sleep(250); await c.vshot(path.join(SHOTS, `${tag}-${p.id}-1-filled.png`)); }
+      await c.goto(URL + p.file);
+      const k0 = Object.keys(first[2])[0];
+      ok(`${t2} 刷新后输入还在`, (await val(c, first[0])) === first[1] && (await val(c, k0)) === first[2][k0]);
+      ok(`${t2} 刷新后展开状态记得`, await c.ev(`!document.getElementById('more').hidden`));
+      await c.ev(`document.getElementById('btnReset').click()`);
+      ok(`${t2} 归零清空`, (await val(c, k0)) === '' && (await c.ev(`document.querySelectorAll('.cell.src').length`)) === 0);
+      ok(`${t2} 无 JS 报错`, c.errors.length === 0, c.errors);
+    }
+    // 菜单里点别的换算能跳过去，点「全部换算」回目录
+    await c.ev(`document.getElementById('btnSwitch').click()`);
+    await sleep(150);
+    await c.ev(`document.querySelector('#switchMenu a[href="area.html"]').click()`);
+    await sleep(800);
+    ok(`${tag} 菜单跳到面积换算`, (await c.ev('location.pathname')).endsWith('/area.html'));
+    await c.ev(`document.getElementById('btnSwitch').click()`);
+    await sleep(150);
+    await c.ev(`document.querySelector('#switchMenu a.home').click()`);
+    await sleep(800);
+    ok(`${tag} 菜单回到目录`, (await c.ev('document.title')) === '换算合集');
+    ok(`${tag} 合集各页无 JS 报错`, c.errors.length === 0, c.errors);
+  } finally {
+    c.close();
+  }
+}
+
 async function run(W, H, dark) {
   const tag = `${W}${dark ? '-dark' : ''}`;
   const c = await open(W, H, 3);
   try {
     await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
-    await c.goto(URL);
+    await c.goto(URL + 'weight.html');
     ok(`${tag} 页面标题`, (await c.ev('document.title')) === '斤两换算');
     ok(`${tag} CSS 已加载`, (await c.ev("getComputedStyle(document.querySelector('.card')).borderRadius")) === '20px');
     ok(`${tag} 每个单位一格`, (await c.ev("document.querySelectorAll('.cell').length")) === (await c.ev('WV_DATA.units.length')));
@@ -93,6 +238,8 @@ async function run(W, H, dark) {
     if (W >= 390) ok(`${tag} 常用 21 格一屏看全（底边 ${bottom} ≤ ${Math.round(H * 0.85)}）`, bottom <= H * 0.85, bottom);
     else console.log(`  ${tag} 常用格底边 ${bottom}（屏高 ${H}，不判）`);
 
+    await switcherChecks(c, tag, W, 'weight');
+
     // 吸顶导航：点「物品」「参照」跳到对应卡片且落在导航条下方，高亮跟着走；点「换算」回到顶
     const navTo = async (id) => { await c.ev(`document.querySelector('.nav-item[data-target=${id}]').click()`); await sleep(1000); };
     const cur = () => c.ev(`document.querySelector('.nav-item[aria-current=true]').dataset.target`);
@@ -122,7 +269,10 @@ async function run(W, H, dark) {
     const sum = await c.ev(`document.getElementById('objSum').textContent`);
     ok(`${tag} 物品卡合计`, sum.includes('183 克') && sum.includes('3两6.6钱'), sum);
     const cws = await c.ev(`[...document.querySelectorAll('#objects .cell')].map(e=>e.querySelector('.cw')?.textContent||'').join('')`);
-    ok(`${tag} 每个物品格都带量词`, cws.length === 18 && !cws.includes(' '), cws);
+    ok(`${tag} 每个物品格都带量词`, cws.length === 24 && !cws.includes(' '), cws);
+    await typeInto(c, 'n_c1y', '100');
+    ok(`${tag} 100 枚 1 元硬币 = 475 克`, (await val(c, 'g')) === '475', await val(c, 'g'));
+    ok(`${tag} 硬币组标明非官方`, (await c.ev(`document.querySelector('[data-group=i_coin] .cap').textContent`)).includes('非官方'));
     ok(`${tag} 读屏能听出是张数`, (await c.ev(`document.getElementById('u_n_rmb100').getAttribute('aria-label')`)) === '100 元，张数');
     await typeInto(c, 'n_rmb100', '100');
     ok(`${tag} 100 张百元 = 115 克`, (await val(c, 'g')) === '115');
@@ -195,7 +345,7 @@ async function run(W, H, dark) {
       ok(`${tag} ${u}=${t} 时数字不被截断`, clipped.length === 0, clipped);
     }
     await overflow('超长数字');
-    await c.goto(URL);
+    await c.goto(URL + 'weight.html');
     ok(`${tag} 展开状态刷新后记得`, await c.ev(`!document.getElementById('more').hidden`));
     // 刷新后字号适配要在可见状态下重新算过：极端值仍不能被截断
     await typeInto(c, 't', '99999999');
@@ -286,7 +436,7 @@ async function run(W, H, dark) {
   if (!URL) { const srv = await serve(); srv.unref(); URL = `http://127.0.0.1:${srv.address().port}/`; }
   console.log('测试地址', URL);
   for (const [W, H] of [[320, 568], [390, 844], [430, 932]]) {
-    for (const dark of [false, true]) await run(W, H, dark);
+    for (const dark of [false, true]) { await run(W, H, dark); await runCollection(W, H, dark); }
   }
   const fail = results.filter(r => !r.pass);
   for (const r of fail) console.log('✗', r.name, JSON.stringify(r.info));

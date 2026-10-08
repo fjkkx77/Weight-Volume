@@ -1,0 +1,194 @@
+/* 换算合集 · 全站样式（2026-10-09 从 index.html 内联样式外移，所有页面共用） */
+/* 配色 token 照搬 data-Calculation */
+:root {
+  --bg: #F2F2F7; --card: #FFFFFF; --text: #000000;
+  /* 要读的次要文字不用系统灰 #8E8E93（白底只有 3.23:1），用 #6E6E73（5.03:1） */
+  --text-2: #6E6E73;
+  --accent: #007AFF; --accent-rgb: 0, 122, 255;
+  --cell: #F2F2F7; --press: rgba(0, 0, 0, .06); --shadow: rgba(0, 0, 0, .06);
+  --warn: #B25000; --invalid: #D70015;
+  --line: rgba(60, 60, 67, .18);
+  --gutter: 16px;   /* 页面左右留白；吸顶导航上方的遮挡条要伸到同样宽 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000; --card: #1C1C1E; --text: #FFFFFF; --text-2: #AEAEB2;
+    --accent: #0A84FF; --accent-rgb: 10, 132, 255;
+    --cell: #2C2C2E; --press: rgba(255, 255, 255, .10); --shadow: rgba(0, 0, 0, .3);
+    --warn: #FFB340; --invalid: #FF6961;
+    --line: rgba(84, 84, 88, .6);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+html, body { overscroll-behavior-y: contain; }
+/* 聚焦输入框、导航跳转时，浏览器自动滚动都要避开吸顶导航条；高度由 JS 实测写进 --nav-offset，不写死。
+   只写在 html 的 scroll-padding 上：卡片再加 scroll-margin 会叠加成两倍（实测落点低了 68px） */
+html { scroll-padding-top: var(--nav-offset, 76px); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
+  padding: calc(12px + env(safe-area-inset-top)) calc(var(--gutter) + env(safe-area-inset-right))
+           calc(32px + env(safe-area-inset-bottom)) calc(var(--gutter) + env(safe-area-inset-left));
+}
+button, select { font: inherit; color: inherit; touch-action: manipulation; }
+.container { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--card); border-radius: 20px; padding: 16px 14px; box-shadow: 0 8px 24px var(--shadow); }
+
+/* 模块导航：照搬 data-Calculation 的吸顶分段条（白底 + 蓝色实心药丸；不用半透明毛玻璃——
+   那边实测后面的卡片会映出一块浅色，像第二个选中项）。在流里 + sticky：顶部就能用，滑下去自动吸顶 */
+.section-nav { position: sticky; top: calc(8px + env(safe-area-inset-top)); z-index: 90;
+  display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card); box-shadow: 0 8px 24px var(--shadow); }
+/* 导航条上方那 8px 缝原来会透出底下的格子（2026-10-08 审查截图：露出半截「打兰 / 盎司」），用页面底色挡住 */
+.section-nav::before { content: ""; position: absolute; left: calc(-1 * var(--gutter)); right: calc(-1 * var(--gutter));
+  bottom: 100%; height: calc(8px + env(safe-area-inset-top)); background: var(--bg); }
+.nav-item { flex: 1; min-height: 44px; border: none; background: transparent; color: #636368;
+  font-size: 15px; font-weight: 600; border-radius: 10px; cursor: pointer; transition: background-color .25s, color .25s; }
+@media (prefers-color-scheme: dark) { .nav-item { color: #B8B8BE; } }
+.nav-item[aria-current="true"] { background: var(--accent); color: #FFFFFF; box-shadow: 0 4px 12px rgba(var(--accent-rgb), .35); }
+.nav-item:not([aria-current="true"]):active { background: var(--press); }
+
+.head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.head h1, .head h2 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.head h1::before, .head h2::before { content: ""; width: 4px; height: 1.05em; border-radius: 2px; flex: none;
+  background: linear-gradient(180deg, var(--accent), #5E5CE6); }
+
+/* 选物质：原生 select，iPhone 上点开就是系统滚轮 */
+.sub-wrap { position: relative; flex: none; }
+.sub-select { appearance: none; -webkit-appearance: none; min-height: 44px; border: none; border-radius: 12px;
+  background: var(--cell); padding: 0 30px 0 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.sub-wrap::after { content: ""; position: absolute; right: 13px; top: 50%; width: 7px; height: 7px; pointer-events: none;
+  border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2); transform: translateY(-70%) rotate(45deg); }
+.btn-icon { width: 44px; height: 44px; border: none; border-radius: 12px; background: var(--cell); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.btn-icon:active, .sub-select:active { background: var(--press); }
+
+/* 单位：每组一个 3 列网格，标签收进格子里（2026-10-07 用户在 A/B 对比图里选的 B） */
+.group + .group { margin-top: 10px; }
+.cap { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 2px 5px; }
+.cap b { color: var(--accent); font-size: 13px; white-space: nowrap; }
+.cap i { font-style: normal; color: var(--warn); white-space: nowrap; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cell { height: 58px; border-radius: 12px; background: var(--cell); padding: 6px 10px 4px;
+  display: flex; flex-direction: column; justify-content: space-between; cursor: text;
+  border: 2px solid transparent; transition: border-color .2s, background-color .2s;
+  /* 格子尺寸由网格和固定高度决定、跟里面的字无关：隔离起来，改一格的数字不必重排整页 */
+  contain: strict; }
+.cell label { font-size: 12.5px; font-weight: 600; color: var(--text-2); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
+.cell input { width: 100%; min-width: 0; height: 26px; border: none; outline: none; background: transparent; padding: 0;
+  color: var(--text); font-family: inherit; font-size: 17px; font-weight: 700; text-align: right;
+  font-variant-numeric: tabular-nums; }
+.cell input::placeholder { color: var(--text-2); opacity: .45; font-weight: 600; }
+/* 正在输入的那一格（换算的起点）：蓝描边 + 浅蓝底 + 蓝标签。聚焦但还没输入时给一层浅一点的提示 */
+.cell.src { border-color: var(--accent); background: rgba(var(--accent-rgb), .10); }
+.cell.src label { color: var(--accent); }
+.cell:focus-within:not(.src) { border-color: rgba(var(--accent-rgb), .45); }
+.cell.invalid input { color: var(--invalid); }
+/* 物品格：数字后面跟量词（张 / 个 / 罐），否则「100 元」格里的 434.8 会被读成钱数 */
+.vrow { display: flex; align-items: baseline; gap: 2px; min-width: 0; }
+.vrow input { flex: 1 1 0; width: 0; }
+.cw { flex: none; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.cell.src .cw { color: var(--accent); }
+/* 量字宽用：和格子里的数字同字体，按 17px 量一次，其他字号按比例换算（不再逐个字号改样式再读 scrollWidth） */
+.meter { position: fixed; left: 0; top: 0; visibility: hidden; pointer-events: none; white-space: pre;
+  font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; contain: layout style; }
+
+/* 参照文字和「更多单位」按钮共用一行：按钮不另占一行，首屏才放得下 */
+.refer-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.refer { flex: 1; min-width: 0; font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; }
+.btn-more { flex: none; min-height: 44px; padding: 0 12px; border: none; border-radius: 12px; background: var(--cell);
+  color: var(--accent); font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn-more .chev { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
+.btn-more[aria-expanded="true"] .chev { transform: translateY(2px) rotate(-135deg); }
+.btn-more:active { background: var(--press); }
+#more { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.refer b { color: var(--text); font-weight: 700; }
+/* 物品卡底部的合计：输入在物品格时，换算卡已滑出屏幕，这里直接给出克数和斤两 */
+.obj-sum { margin-top: 10px; min-height: 22px; font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; }
+.obj-sum b { color: var(--text); font-weight: 700; }
+.refer .warn { color: var(--warn); display: block; margin-top: 2px; }
+
+.note { font-size: 12.5px; color: var(--text-2); margin-top: 8px; }
+
+/* 320 档（iPhone SE 一代）：压尺寸不换形态——每格可用宽度从约 57px 撑到约 72px，8 位数字和「美制液盎司」才放得下 */
+@media (max-width: 359px) {
+  :root { --gutter: 12px; }
+  .card { padding: 14px 10px; }
+  .grid { gap: 6px; }
+  .cell { padding: 6px 6px 4px; }
+}
+
+@media (hover: hover) {
+  .btn-icon:hover { background-color: var(--press); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ======== 下拉刷新组件 CSS：原样拷自 references/组件_下拉刷新（v1.7）======== */
+#ptr-indicator { position: fixed; top: calc(-44px + env(safe-area-inset-top, 0px)); left: 50%; margin-left: -18px;
+  width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center;
+  color: #2563eb; opacity: 0; pointer-events: none; z-index: 350; }
+#ptr-indicator.ptr-animate { transition: transform .25s ease, opacity .25s ease; }
+#ptr-indicator svg { width: 20px; height: 20px; }
+#ptr-indicator .ptr-arrow { transition: transform .2s ease; }
+#ptr-indicator.ptr-ready .ptr-arrow { transform: rotate(180deg); }
+#ptr-indicator .ptr-spinner { display: none; }
+#ptr-indicator.ptr-loading .ptr-arrow { display: none; }
+#ptr-indicator.ptr-loading .ptr-spinner { display: block; animation: ptr-spin .8s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+#ptr-tip { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(20px); width: max-content; max-width: min(420px, calc(100vw - 2rem));
+  background: #1f2937; color: #fff; border-radius: 12px; padding: .85rem 1.1rem; font-size: .9rem; line-height: 1.5;
+  z-index: 400; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+#ptr-tip.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ======== 换算合集（2026-10-09）======== */
+/* 标题即切换入口：点「斤两换算 ⌄」弹出菜单（返回目录 + 切到别的换算）。
+   不另加一行「‹ 全部换算」：斤两页首屏 21 格离「一屏看全」判据只剩 18px，多一行就超 */
+.head { position: relative; }
+.title-btn { border: none; background: none; padding: 0; margin: 0; min-height: 44px; min-width: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; color: inherit; letter-spacing: inherit;
+  white-space: nowrap; border-radius: 10px; }
+.title-btn .chev { flex: none; width: 8px; height: 8px; border-right: 2.5px solid var(--text-2); border-bottom: 2.5px solid var(--text-2);
+  transform: translateY(-3px) rotate(45deg); transition: transform .2s; }
+.title-btn[aria-expanded="true"] .chev { transform: translateY(2px) rotate(-135deg); }
+.title-btn:active { opacity: .6; }
+.switch-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 95;
+  background: var(--card); border-radius: 16px; padding: 8px; border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .18);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+  transform-origin: top left; animation: menu-in .18s cubic-bezier(.2, .9, .3, 1.1); }
+@keyframes menu-in { from { opacity: 0; transform: scale(.96) translateY(-4px); } }
+.switch-menu a { min-height: 48px; border-radius: 12px; background: var(--cell); color: var(--text); text-decoration: none;
+  padding: 6px 12px; display: flex; flex-direction: column; justify-content: center; border: 2px solid transparent; }
+.switch-menu a b { font-size: 15px; font-weight: 700; }
+.switch-menu a small { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.switch-menu a.home { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px; color: var(--accent); font-weight: 700; }
+.switch-menu a[aria-current="page"] { border-color: var(--accent); background: rgba(var(--accent-rgb), .10); }
+.switch-menu a:active { background: var(--press); }
+@media (prefers-color-scheme: dark) { .switch-menu { box-shadow: 0 16px 40px rgba(0, 0, 0, .6); } }
+
+/* ± 键（温度）：iPhone 的数字键盘没有减号 */
+.btn-sign { font-size: 22px; font-weight: 700; line-height: 1; }
+
+/* 目录页 */
+.hub-head { padding: 6px 2px 2px; }
+.hub-head h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+.hub-head p { font-size: 14px; color: var(--text-2); margin-top: 2px; }
+.hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--card); border-radius: 20px; padding: 14px; box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 8px; min-height: 112px;
+  transition: transform .15s; }
+.tile:active { transform: scale(.97); }
+.tile .glyph { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), .12); color: var(--accent); font-size: 21px; font-weight: 800; }
+.tile b { font-size: 17px; font-weight: 800; }
+.tile small { font-size: 13px; color: var(--text-2); line-height: 1.35; }
+
+/* 输入不成立（低于绝对零度）时，提示行和标红的格子同色 */
+.refer.bad { color: var(--invalid); }

@@ -76,7 +76,7 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
     assert.ok(u.label && u.label.trim(), `${u.id} 缺显示名`);
     assert.ok(D.groups.some(g => g.id === u.group), `${u.id} 组不存在`);
   }
-  assert.equal(D.units.length, 81, '57 个 + 为排满每行补的 6 个同族单位 + 18 个生活物品');
+  assert.equal(D.units.length, 87, '57 个 + 为排满每行补的 6 个同族单位 + 24 个生活物品（含 6 枚硬币）');
   for (const g of D.groups) {
     assert.ok(['common', 'more', 'items'].includes(g.tier), `${g.id} tier 非法`);
     const n = D.units.filter(u => u.group === g.id).length;
@@ -115,17 +115,23 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
 
 test('生活物品格（用户 2026-10-08：输入几个/几张，其他单位显示多重）', () => {
   const items = D.units.filter(u => D.groups.find(g => g.id === u.group).tier === 'items');
-  assert.equal(items.length, 18);
-  // 只有人民币允许「非官方实测」（用户点头的例外），其余仍只收标准规定 / 按标准推算 / 包装标称
+  assert.equal(items.length, 24);
+  // 只有人民币（纸币、硬币）允许「非官方实测」（用户点头的例外），其余仍只收标准规定 / 按标准推算 / 包装标称
+  const RMB = ['i_rmb', 'i_coin'];
   for (const u of items) {
-    const ok = u.group === 'i_rmb' ? u.level === 'unofficial' : ['standard', 'derived', 'label'].includes(u.level);
+    const ok = RMB.includes(u.group) ? u.level === 'unofficial' : ['standard', 'derived', 'label'].includes(u.level);
     assert.ok(ok, `${u.id} 级别 ${u.level}`);
     assert.ok(u.cw && u.cw.length === 1, `${u.id} 缺量词`);
     assert.equal(u.kind, 'mass', `${u.id}：物品一律按重量记，装的东西不能跟着所选物质变`);
     if (u.suggest !== false) assert.ok(u.noun, `${u.id} 进推荐却缺名字`);
   }
-  assert.ok(D.units.filter(u => u.level === 'unofficial').every(u => u.group === 'i_rmb'), '非官方实测只许用在人民币');
-  assert.ok(D.groups.find(g => g.id === 'i_rmb').note, '人民币组要在页面上标明非官方');
+  assert.ok(D.units.filter(u => u.level === 'unofficial').every(u => RMB.includes(u.group)), '非官方实测只许用在人民币');
+  for (const id of RMB) assert.ok(D.groups.find(g => g.id === id).note, `${id} 要在页面上标明非官方`);
+  // 硬币（2026-10-09）：重量取钱币目录记载值，上行分币、下行 2019 版，每行由轻到重；不进推荐
+  const coin = Object.fromEntries(D.units.filter(u => u.group === 'i_coin').map(u => [u.id, u.toBase]));
+  assert.deepEqual(coin, { n_c1f: 0.67, n_c2f: 1.08, n_c5f: 1.6, n_c1j: 3.2, n_c5j: 3.8, n_c1y: 4.75 });
+  assert.ok(D.units.filter(u => u.group === 'i_coin').every(u => u.cw === '枚' && u.suggest === false));
+  assert.ok(close(C.convertAll(100, 'n_c1y', 'water').g, 475), '100 枚 1 元硬币 = 475 克');
   // 用户举的三个例子
   assert.ok(close(C.convertAll(10, 'n_egg', 'water').g, 610), '10 个中等蛋（取中值 61 克）= 610 克');
   assert.ok(close(C.convertAll(100, 'n_a4', 'water').g, 498.96), '100 张 80 克 A4 = 498.96 克');
@@ -210,7 +216,7 @@ test('物品推荐：恰好等于某物品时首推它；不推荐起点格自�
     // 起点就是这件物品时（输入 1 罐可乐），不能再说「相当于 1 罐可乐」
     assert.ok(!C.suggestItems(u.toBase, u.id).some(x => x.item.id === u.id), `${u.id} 推荐了自己`);
   }
-  assert.ok(!C.suggestItems(1.15).concat(C.suggestItems(10)).some(x => x.item.group === 'i_rmb'), '人民币是非官方数据，不进推荐');
+  assert.ok(![1.15, 3.8, 4.75, 10].flatMap(g => C.suggestItems(g)).some(x => ['i_rmb', 'i_coin'].includes(x.item.group)), '人民币是非官方数据，不进推荐');
 });
 
 test('物品推荐全量程扫描：倍数始终好记、最多两条、量级拉开', () => {

@@ -6,7 +6,7 @@
  *   - 基准单位：重量 = 克，容量 = 毫升。toBase 是「1 个该单位 = 多少基准单位」。
  *   - units 的顺序就是页面上的格子顺序；每 3 个一行，一行必须是同一类（排版规则见 groups 上方注释）。
  *   - 物品只收「有标准规定」或「包装上印着标称值」的，不收经验估计（用户 2026-10-07 定：避免歧义）；
- *     唯一例外是人民币（央行不公布克重，用户 2026-10-08 同意用第三方称量并标明非官方）。
+ *     唯一例外是人民币（央行不公布克重，用户 2026-10-08 同意用第三方称量并标明非官方；硬币 2026-10-09 同样处理）。
  *   - 原来的「生活参照」items 表 2026-10-08 并进了物品格（units 里 tier 为 items 的那些），不再单独存一份。
  *   - 数值核实于 2026-10-06，出处链接见 README「数据出处」。
  */
@@ -27,7 +27,7 @@
     derived: '按标准推算',
     measured: '实测数据',
     label: '包装标称',
-    unofficial: '非官方实测'   // 人民币纸币：央行只公布尺寸、不公布克重（用户 2026-10-08 选「放，但标明非官方」）
+    unofficial: '非官方实测'   // 人民币纸币和硬币：央行只公布尺寸、不公布克重（用户 2026-10-08 选「放，但标明非官方」，硬币 10-09 同样选）
   };
 
   // 人民币纸币：只有 100 元的「约 1.15 克」流传较广（第三方称量，央行未公布），
@@ -36,6 +36,8 @@
   function rmb(w, h) { return RMB100_G * w * h / RMB100_AREA; }
   var A4_G = 0.21 * 0.297 * 80;   // 一张 80 克 A4 = 4.9896 克
   var RMB_SRC = '中国人民银行公告公布的票面尺寸；单张克重央行未公布，按 100 元约 1.15 克（第三方称量）× 面积比推算';
+  var COIN_SRC = '2019 年版第五套人民币，重量取钱币目录 Numista / uCoin / Numisquare 三家一致的记载值；中国人民银行公告只公布直径和材质、未公布重量';
+  var COIN_FEN_SRC = '铝分币，重量取钱币目录 Numista 的记载值（只核到这一家）；中国人民银行未公布重量';
 
   // tier: 'common' 首屏常用（必须一屏看全）；'more' 收在「更多单位」里。
   // 排版规则（用户 2026-10-07：「尽量把一类的放一起……我有强迫症请你好好排版规整一下」）：
@@ -60,6 +62,8 @@
     // 标题里写出每一列按什么规格算（审查发现规格只藏在底部小字里，瓶装水 550/555/570 毫升都有，会有歧义）
     { id: 'i_daily', tier: 'items', name: '日用 · 2.7 克 / 4.99 克 / 61 克' },
     { id: 'i_rmb', tier: 'items', name: '人民币纸币', note: '非官方实测' },
+    // 硬币（用户 2026-10-08 要求补上）：上行分币、下行现行 2019 版，标题写明版别，避免和老版 1 元（6.1 克）混淆
+    { id: 'i_coin', tier: 'items', name: '硬币 · 分币 / 2019 版', note: '非官方实测' },
     { id: 'i_drink', tier: 'items', name: '饮料 · 250 / 330 / 550 毫升' },
     { id: 'i_pack1', tier: 'items', name: '大包装 · 400 克 / 500 张 / 5 升' },
     { id: 'i_pack2', tier: 'items', name: '大包装 · 5 千克 / 18.9 升 / 50 千克' }
@@ -162,7 +166,7 @@
     { id: 'ft3', label: '立方英尺', group: 'm_imp_vol', kind: 'volume', toBase: 28316.846592, level: 'exact', source: '= 1728 立方英寸（由 ' + SRC.nist + ' 推导）' },
     { id: 'yd3', label: '立方码', group: 'm_imp_vol', kind: 'volume', toBase: 764554.857984, level: 'exact', source: '= 27 立方英尺（由 ' + SRC.nist + ' 推导）' },
 
-    // ======== 生活物品 18 个（6 行）：1 件 = 多少克，每行从左到右由小到大 ========
+    // ======== 生活物品 24 个（8 行）：1 件 = 多少克，每行从左到右由小到大 ========
     // 全部按重量记（kind: 'mass'）：装的东西是固定的，不能跟着顶部「按什么物质」变——
     //   2026-10-08 审查实测：选「按面粉」时 3 罐可乐算成 574 克。容量类物品用 vol × 自己内容物的密度折成克。
     // cw：量词（格子里数字后面的小字、推荐文字用）；noun：推荐文字里的名字；vol：一件装多少毫升；suggest:false 不进「相当于」推荐
@@ -175,6 +179,15 @@
     { id: 'n_rmb20', label: '20 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(145, 70), level: 'unofficial', suggest: false, source: RMB_SRC + '（145×70 毫米）' },
     { id: 'n_rmb50', label: '50 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(150, 70), level: 'unofficial', suggest: false, source: RMB_SRC + '（150×70 毫米）' },
     { id: 'n_rmb100', label: '100 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: RMB100_G, level: 'unofficial', suggest: false, source: '155×77 毫米；约 1.15 克为第三方称量，中国人民银行未公布单张克重' },
+    // 人民币硬币：中国人民银行的发行公告只公布直径和材质、不公布重量（2019 年版公告与各行转发的《硬币详解》均如此），
+    //   只能取钱币目录记载的值。2019 版三枚 Numista、uCoin、Numisquare 三家一致；分币只核到 Numista 一家。
+    //   网上流传的「2019 版 1 元 3.3 克、1 角 4.7 克」与三家目录都对不上，不采用（2026-10-09 核）
+    { id: 'n_c1f', label: '1 分', cw: '枚', group: 'i_coin', kind: 'mass', toBase: 0.67, level: 'unofficial', suggest: false, source: COIN_FEN_SRC + '（18 毫米）' },
+    { id: 'n_c2f', label: '2 分', cw: '枚', group: 'i_coin', kind: 'mass', toBase: 1.08, level: 'unofficial', suggest: false, source: COIN_FEN_SRC + '（21 毫米）' },
+    { id: 'n_c5f', label: '5 分', cw: '枚', group: 'i_coin', kind: 'mass', toBase: 1.6, level: 'unofficial', suggest: false, source: COIN_FEN_SRC + '（24 毫米）' },
+    { id: 'n_c1j', label: '1 角', cw: '枚', group: 'i_coin', kind: 'mass', toBase: 3.2, level: 'unofficial', suggest: false, source: COIN_SRC + '（不锈钢，直径 19 毫米）' },
+    { id: 'n_c5j', label: '5 角', cw: '枚', group: 'i_coin', kind: 'mass', toBase: 3.8, level: 'unofficial', suggest: false, source: COIN_SRC + '（钢芯镀镍，直径 20.5 毫米）' },
+    { id: 'n_c1y', label: '1 元', cw: '枚', group: 'i_coin', kind: 'mass', toBase: 4.75, level: 'unofficial', suggest: false, source: COIN_SRC + '（钢芯镀镍，直径 22.25 毫米）' },
     { id: 'n_milk', label: '盒装牛奶', cw: '盒', noun: '牛奶', group: 'i_drink', kind: 'mass', vol: 250, toBase: 250 * dens('milk'), level: 'label', source: SRC.pack + '（250 毫升）× 牛奶密度 1.03（' + SRC.fao + '）' },
     { id: 'n_cola', label: '罐装可乐', cw: '罐', noun: '可乐', group: 'i_drink', kind: 'mass', vol: 330, toBase: 330 * dens('water'), level: 'label', source: SRC.pack + '（330 毫升），按水的密度近似' },
     { id: 'n_bottle', label: '瓶装水', cw: '瓶', noun: '矿泉水', group: 'i_drink', kind: 'mass', vol: 550, toBase: 550 * dens('water'), level: 'label', source: SRC.pack + '（550 毫升）× 水的密度' },
