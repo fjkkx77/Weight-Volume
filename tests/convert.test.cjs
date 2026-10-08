@@ -65,7 +65,7 @@ test('每个单位来回换算一圈回到原值', () => {
 
 test('数据完整性：出处非空、id 唯一、枚举合法、网格排得整齐', () => {
   const ids = new Set();
-  for (const r of [...D.units, ...D.substances, ...D.items]) {
+  for (const r of [...D.units, ...D.substances]) {
     assert.ok(r.id && !ids.has(r.id), `重复或缺失 id: ${r.id}`);
     ids.add(r.id);
     assert.ok(typeof r.source === 'string' && r.source.trim(), `${r.id} 缺出处`);
@@ -76,7 +76,7 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
     assert.ok(u.label && u.label.trim(), `${u.id} 缺显示名`);
     assert.ok(D.groups.some(g => g.id === u.group), `${u.id} 组不存在`);
   }
-  assert.equal(D.units.length, 78, '57 个 + 为排满每行补的 6 个同族单位 + 15 个生活物品');
+  assert.equal(D.units.length, 81, '57 个 + 为排满每行补的 6 个同族单位 + 18 个生活物品');
   for (const g of D.groups) {
     assert.ok(['common', 'more', 'items'].includes(g.tier), `${g.id} tier 非法`);
     const n = D.units.filter(u => u.group === g.id).length;
@@ -113,37 +113,43 @@ test('数据完整性：出处非空、id 唯一、枚举合法、网格排得�
   assert.equal(D.substances[0].id, 'water', '默认物质必须是水');
 });
 
-test('图鉴只收标准规定与包装标称（用户 2026-10-07 定：不要经验值）', () => {
-  const allowed = ['standard', 'derived', 'label'];
-  for (const it of D.items) {
-    assert.ok(allowed.includes(it.level), `${it.id} 级别 ${it.level} 不该进图鉴`);
-    assert.ok(['mass', 'volume'].includes(it.kind), it.id);
-    assert.ok(!it.range, `${it.id} 带了区间：既定标准应是单一数值`);
-  }
-  assert.ok(!('estimate' in D.levels), '经验值这一级已经撤掉');
-});
-
 test('生活物品格（用户 2026-10-08：输入几个/几张，其他单位显示多重）', () => {
   const items = D.units.filter(u => D.groups.find(g => g.id === u.group).tier === 'items');
-  assert.equal(items.length, 15);
+  assert.equal(items.length, 18);
   // 只有人民币允许「非官方实测」（用户点头的例外），其余仍只收标准规定 / 按标准推算 / 包装标称
   for (const u of items) {
     const ok = u.group === 'i_rmb' ? u.level === 'unofficial' : ['standard', 'derived', 'label'].includes(u.level);
     assert.ok(ok, `${u.id} 级别 ${u.level}`);
+    assert.ok(u.cw && u.cw.length === 1, `${u.id} 缺量词`);
+    assert.equal(u.kind, 'mass', `${u.id}：物品一律按重量记，装的东西不能跟着所选物质变`);
+    if (u.suggest !== false) assert.ok(u.noun, `${u.id} 进推荐却缺名字`);
   }
   assert.ok(D.units.filter(u => u.level === 'unofficial').every(u => u.group === 'i_rmb'), '非官方实测只许用在人民币');
   assert.ok(D.groups.find(g => g.id === 'i_rmb').note, '人民币组要在页面上标明非官方');
   // 用户举的三个例子
-  assert.ok(close(C.convertAll(10, 'n_egg', 'water').g, 590), '10 个中等蛋 = 590 克');
+  assert.ok(close(C.convertAll(10, 'n_egg', 'water').g, 610), '10 个中等蛋（取中值 61 克）= 610 克');
   assert.ok(close(C.convertAll(100, 'n_a4', 'water').g, 498.96), '100 张 80 克 A4 = 498.96 克');
   assert.ok(close(C.convertAll(100, 'n_rmb100', 'water').g, 115), '100 张百元 = 115 克');
-  // 反过来：1 斤 ≈ 8.47 个鸡蛋
-  assert.ok(close(C.convertAll(1, 'jin', 'water').n_egg, 500 / 59));
+  assert.ok(close(C.convertAll(1, 'jin', 'water').n_egg, 500 / 61));
   // 纸币按面积比：同一纸张，克重和面积成正比
   const area = { n_rmb1: 130 * 63, n_rmb5: 135 * 63, n_rmb10: 140 * 70, n_rmb20: 145 * 70, n_rmb50: 150 * 70, n_rmb100: 155 * 77 };
   for (const id in area) assert.ok(close(C.toBase(1, id) / area[id], 1.15 / (155 * 77)), id);
-  // 容量物品走所选物质的密度：3 罐可乐按水 = 990 克
-  assert.ok(close(C.convertAll(3, 'n_cola', 'water').g, 990));
+  // 审查 bug：装的东西是固定的。选面粉、食用油时，3 罐可乐仍是 990 克，1 桶桶装水仍是 18.9 千克
+  for (const sub of D.substances.map(x => x.id)) {
+    assert.ok(close(C.convertAll(3, 'n_cola', sub).g, 990), `按${sub}时 3 罐可乐不是 990 克`);
+    assert.ok(close(C.convertAll(1, 'n_jug', sub).g, 18900), `按${sub}时桶装水不对`);
+  }
+  assert.ok(close(C.toBase(1, 'n_milk'), 257.5), '牛奶按自己的密度 1.03');
+  assert.ok(close(C.toBase(1, 'n_oil'), 4600), '食用油按自己的密度 0.92');
+  assert.ok(close(C.toBase(1, 'n_ream'), 500 * C.toBase(1, 'n_a4')), '一包 = 500 张');
+  // 大包装两行是一条阶梯：上一行最大 < 下一行最小
+  const p1 = D.units.filter(u => u.group === 'i_pack1'), p2 = D.units.filter(u => u.group === 'i_pack2');
+  assert.ok(p1[2].toBase < p2[0].toBase, '大包装应从左上到右下一路递增');
+  // 组标题里的规格要和数据对得上（标题是给人看的，数据改了标题忘了改就会骗人）
+  const cap = id => D.groups.find(g => g.id === id).name;
+  assert.ok(cap('i_daily').includes('61 克') && cap('i_drink').includes('250 / 330 / 550'));
+  assert.ok(cap('i_pack1').includes('400 克 / 500 张 / 5 升') && cap('i_pack2').includes('5 千克 / 18.9 升 / 50 千克'));
+  for (const u of items.filter(u => u.vol)) assert.ok(cap(u.group).includes(String(u.vol >= 1000 ? u.vol / 1000 : u.vol)), `${u.id} 的容量没写进标题`);
 });
 
 test('按物质跨重量/容量换算', () => {
@@ -195,37 +201,51 @@ test('格子写法：大数用亿/万亿，小数可减位数', () => {
   assert.equal(C.formatCell(9.99999e16), '1×10¹⁷', '尾数四舍五入到 10 要进位');
 });
 
-test('物品推荐：恰好等于某物品时首推它', () => {
-  // 按水算（克 = 毫升）。5000 同时是「一袋大米」和「一桶食用油」，所以判据是「首推的正好 1 倍」，不是认死某一个
-  for (const it of D.items) {
-    const s = C.suggestItems({ g: it.value, ml: it.value });
-    assert.ok(s[0] && close(s[0].ratio, 1), `${it.value} 应首推一个正好 1 倍的物品，实际 ${s.map(x => x.item.id + '×' + x.ratio)}`);
+const CANDS = D.units.filter(u => D.groups.find(g => g.id === u.group).tier === 'items' && u.suggest !== false);
+
+test('物品推荐：恰好等于某物品时首推它；不推荐起点格自己', () => {
+  for (const u of CANDS) {
+    const s = C.suggestItems(u.toBase);
+    assert.ok(s[0] && close(s[0].ratio, 1), `${u.toBase} 应首推一个正好 1 倍的物品，实际 ${s.map(x => x.item.id + '×' + x.ratio)}`);
+    // 起点就是这件物品时（输入 1 罐可乐），不能再说「相当于 1 罐可乐」
+    assert.ok(!C.suggestItems(u.toBase, u.id).some(x => x.item.id === u.id), `${u.id} 推荐了自己`);
   }
+  assert.ok(!C.suggestItems(1.15).concat(C.suggestItems(10)).some(x => x.item.group === 'i_rmb'), '人民币是非官方数据，不进推荐');
 });
 
 test('物品推荐全量程扫描：倍数始终好记、最多两条、量级拉开', () => {
-  for (let e = -2; e <= 6; e += 0.125) {
+  for (let e = -2; e <= 7; e += 0.125) {
     const v = 10 ** e;
-    const s = C.suggestItems({ g: v, ml: v });
+    const s = C.suggestItems(v);
     assert.ok(s.length <= 2);
     for (const x of s) assert.ok(x.ratio >= 0.5 && x.ratio <= 20, `${v}: ${x.item.id} ×${x.ratio}`);
     if (s.length === 2) {
-      const k = s[0].item.value / s[1].item.value;
+      const k = s[0].item.toBase / s[1].item.toBase;
       assert.ok(k >= 1.6 || k <= 1 / 1.6, `${v}: ${s[0].item.id} vs ${s[1].item.id}`);
     }
   }
-  assert.deepEqual(C.suggestItems({ g: 1e9, ml: 1e9 }), []);
-  assert.deepEqual(C.suggestItems({ g: 0, ml: 0 }), []);
+  assert.deepEqual(C.suggestItems(1e9), []);
+  assert.deepEqual(C.suggestItems(0), []);
 });
 
 test('推荐文字：量词不重复、半个、数字与字母之间留空格', () => {
-  const pick = (g) => C.suggestItems({ g, ml: g }).map(C.suggestionText);
+  const pick = (g) => C.suggestItems(g).map(C.suggestionText);
   assert.ok(pick(495).includes('1.5 罐可乐'), pick(495));
   assert.ok(pick(275).includes('半瓶矿泉水'), pick(275));
-  assert.ok(pick(9.98).includes('2 张 A4 纸（80 克规格）'), pick(9.98));
-  for (let e = -1; e <= 5; e += 0.25) {
-    for (const t of pick(10 ** e)) assert.ok(!/(\S)一\1/.test(t), `量词重复：${t}`);
+  assert.ok(pick(9.98).includes('2 张 A4 纸'), pick(9.98));
+  for (let e = -1; e <= 6; e += 0.25) {
+    for (const t of pick(10 ** e)) assert.ok(!/(\S)一\1/.test(t) && !/桶桶桶/.test(t) && !/undefined/.test(t), `推荐文字不对：${t}`);
   }
+});
+
+test('物品格数量写法：不带假精度', () => {
+  assert.equal(C.formatCount(500 / 61), '8.2');
+  assert.equal(C.formatCount(500 / 1.15), '434.8');
+  assert.equal(C.formatCount(3), '3');
+  assert.equal(C.formatCount(1 / 18900), '0.000053');
+  assert.equal(C.formatCount(0.999), '1');
+  assert.equal(C.formatCount(0), '0');
+  assert.equal(C.formatCount(1e9 / 2.7), '3.7037亿');
 });
 
 test('输入解析', () => {
@@ -237,4 +257,6 @@ test('输入解析', () => {
   assert.equal(C.parseInput('-3'), null);
   assert.equal(C.parseInput('abc'), null);
   assert.equal(C.parseInput('1.2.3'), null);
+  assert.equal(C.parseInput('１２'), 12, '全角数字');
+  assert.equal(C.parseInput('１．５'), 1.5);
 });

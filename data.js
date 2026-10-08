@@ -5,7 +5,9 @@
  *   - 每条都必须有 source（tests/convert.test.cjs 会拦截空出处）。
  *   - 基准单位：重量 = 克，容量 = 毫升。toBase 是「1 个该单位 = 多少基准单位」。
  *   - units 的顺序就是页面上的格子顺序；每 3 个一行，一行必须是同一类（排版规则见 groups 上方注释）。
- *   - 物品只收「有标准规定」或「包装上印着标称值」的，不收经验估计（用户 2026-10-07 定：避免歧义）。
+ *   - 物品只收「有标准规定」或「包装上印着标称值」的，不收经验估计（用户 2026-10-07 定：避免歧义）；
+ *     唯一例外是人民币（央行不公布克重，用户 2026-10-08 同意用第三方称量并标明非官方）。
+ *   - 原来的「生活参照」items 表 2026-10-08 并进了物品格（units 里 tier 为 items 的那些），不再单独存一份。
  *   - 数值核实于 2026-10-06，出处链接见 README「数据出处」。
  */
 (function (root) {
@@ -32,6 +34,7 @@
   // 其他面值网上说法互相对不上，改为按央行公布的票面尺寸、与 100 元同纸张按面积比推算
   var RMB100_G = 1.15, RMB100_AREA = 155 * 77;
   function rmb(w, h) { return RMB100_G * w * h / RMB100_AREA; }
+  var A4_G = 0.21 * 0.297 * 80;   // 一张 80 克 A4 = 4.9896 克
   var RMB_SRC = '中国人民银行公告公布的票面尺寸；单张克重央行未公布，按 100 元约 1.15 克（第三方称量）× 面积比推算';
 
   // tier: 'common' 首屏常用（必须一屏看全）；'more' 收在「更多单位」里。
@@ -53,11 +56,26 @@
     { id: 'm_kitchen', tier: 'more', name: '厨房量具' },
     { id: 'm_imp_vol', tier: 'more', name: '英美容量' },
     // tier 'items'：生活物品，按个数/张数输入（用户 2026-10-08：「输入 xxx 张 A4 纸后其他各个单位显示多重」），单独一张卡紧跟换算卡
-    { id: 'i_daily', tier: 'items', name: '日用 · 个 / 张' },
-    { id: 'i_rmb', tier: 'items', name: '人民币纸币 · 张', note: '非官方实测' },
-    { id: 'i_drink', tier: 'items', name: '饮料 · 按包装容量' },
-    { id: 'i_pack', tier: 'items', name: '大包装 · 按包装标称' }
+    // tier 'items'：生活物品，按件数输入（用户 2026-10-08：「输入 xxx 张 A4 纸后其他各个单位显示多重」），单独一张卡紧跟换算卡。
+    // 标题里写出每一列按什么规格算（审查发现规格只藏在底部小字里，瓶装水 550/555/570 毫升都有，会有歧义）
+    { id: 'i_daily', tier: 'items', name: '日用 · 2.7 克 / 4.99 克 / 61 克' },
+    { id: 'i_rmb', tier: 'items', name: '人民币纸币', note: '非官方实测' },
+    { id: 'i_drink', tier: 'items', name: '饮料 · 250 / 330 / 550 毫升' },
+    { id: 'i_pack1', tier: 'items', name: '大包装 · 400 克 / 500 张 / 5 升' },
+    { id: 'i_pack2', tier: 'items', name: '大包装 · 5 千克 / 18.9 升 / 50 千克' }
   ];
+
+  // density：克/毫升；granular=true 表示松紧不同误差大
+  var substances = [
+    { id: 'water', name: '水', density: 1.0, level: 'measured', source: SRC.fao + '（常温近似）' },
+    { id: 'milk', name: '牛奶', density: 1.03, range: [1.02, 1.05], level: 'measured', source: SRC.fao },
+    { id: 'oil', name: '食用油', density: 0.92, range: [0.914, 0.927], level: 'measured', source: SRC.fao + '（玉米/花生/大豆/橄榄油）' },
+    { id: 'rice', name: '生大米', density: 0.82, range: [0.72, 0.85], granular: true, level: 'measured', source: SRC.fao },
+    { id: 'flour', name: '面粉', density: 0.58, range: [0.48, 0.67], granular: true, level: 'measured', source: SRC.fao },
+    { id: 'sugar', name: '白糖', density: 0.88, range: [0.7, 0.95], granular: true, level: 'measured', source: SRC.fao },
+    { id: 'salt', name: '食盐', density: 1.22, range: [1.22, 1.38], granular: true, level: 'measured', source: SRC.fao }
+  ];
+  function dens(id) { return substances.filter(function (x) { return x.id === id; })[0].density; }
 
   // label：格子里显示的短名（320 宽下最多 5 个字）
   var units = [
@@ -144,51 +162,33 @@
     { id: 'ft3', label: '立方英尺', group: 'm_imp_vol', kind: 'volume', toBase: 28316.846592, level: 'exact', source: '= 1728 立方英寸（由 ' + SRC.nist + ' 推导）' },
     { id: 'yd3', label: '立方码', group: 'm_imp_vol', kind: 'volume', toBase: 764554.857984, level: 'exact', source: '= 27 立方英尺（由 ' + SRC.nist + ' 推导）' },
 
-    // ======== 生活物品 15 个（5 行）：1 个/张 = 多少克（或毫升），每行从左到右由小到大 ========
-    // id 带 n_ 前缀，避免和下面「生活参照」的 items 撞 id
-    { id: 'n_pingpong', label: '乒乓球', group: 'i_daily', kind: 'mass', toBase: 2.7, level: 'standard', source: '国际乒联规则 2.3.3：球重 2.7 克' },
-    { id: 'n_a4', label: 'A4 纸', group: 'i_daily', kind: 'mass', toBase: 0.21 * 0.297 * 80, level: 'derived', source: 'ISO 216：A4 为 210×297 毫米，按最常见的 80 克/平方米复印纸 = 4.9896 克' },
-    { id: 'n_egg', label: '鸡蛋', group: 'i_daily', kind: 'mass', toBase: 59, level: 'derived', source: 'SB/T 10638-2011《鲜鸡蛋、鲜鸭蛋分级》中等蛋（M 级，单枚 58～64 克）每 100 枚不少于 5.9 千克 → 按 59 克（分级表经 T/GDFCA 048-2020 表 2 转引核对）' },
-    { id: 'n_rmb1', label: '1 元', group: 'i_rmb', kind: 'mass', toBase: rmb(130, 63), level: 'unofficial', source: RMB_SRC + '（130×63 毫米）' },
-    { id: 'n_rmb5', label: '5 元', group: 'i_rmb', kind: 'mass', toBase: rmb(135, 63), level: 'unofficial', source: RMB_SRC + '（135×63 毫米）' },
-    { id: 'n_rmb10', label: '10 元', group: 'i_rmb', kind: 'mass', toBase: rmb(140, 70), level: 'unofficial', source: RMB_SRC + '（140×70 毫米）' },
-    { id: 'n_rmb20', label: '20 元', group: 'i_rmb', kind: 'mass', toBase: rmb(145, 70), level: 'unofficial', source: RMB_SRC + '（145×70 毫米）' },
-    { id: 'n_rmb50', label: '50 元', group: 'i_rmb', kind: 'mass', toBase: rmb(150, 70), level: 'unofficial', source: RMB_SRC + '（150×70 毫米）' },
-    { id: 'n_rmb100', label: '100 元', group: 'i_rmb', kind: 'mass', toBase: RMB100_G, level: 'unofficial', source: '155×77 毫米；约 1.15 克为第三方称量，中国人民银行未公布单张克重' },
-    { id: 'n_milk', label: '盒装牛奶', group: 'i_drink', kind: 'volume', toBase: 250, level: 'label', source: SRC.pack + '（250 毫升）' },
-    { id: 'n_cola', label: '罐装可乐', group: 'i_drink', kind: 'volume', toBase: 330, level: 'label', source: SRC.pack + '（330 毫升）' },
-    { id: 'n_bottle', label: '瓶装水', group: 'i_drink', kind: 'volume', toBase: 550, level: 'label', source: SRC.pack + '（550 毫升）' },
-    // 这一行一包盐、一袋米是重量，桶装水是容量（按水 18.9 千克），从小到大照样成立
-    { id: 'n_salt', label: '袋装盐', group: 'i_pack', kind: 'mass', toBase: 400, level: 'label', source: SRC.pack + '（400 克）' },
-    { id: 'n_rice', label: '袋装大米', group: 'i_pack', kind: 'mass', toBase: 5000, level: 'label', source: SRC.pack + '（5 千克）' },
-    { id: 'n_jug', label: '桶装水', group: 'i_pack', kind: 'volume', toBase: 18900, level: 'label', source: SRC.pack + '（18.9 升）' }
+    // ======== 生活物品 18 个（6 行）：1 件 = 多少克，每行从左到右由小到大 ========
+    // 全部按重量记（kind: 'mass'）：装的东西是固定的，不能跟着顶部「按什么物质」变——
+    //   2026-10-08 审查实测：选「按面粉」时 3 罐可乐算成 574 克。容量类物品用 vol × 自己内容物的密度折成克。
+    // cw：量词（格子里数字后面的小字、推荐文字用）；noun：推荐文字里的名字；vol：一件装多少毫升；suggest:false 不进「相当于」推荐
+    { id: 'n_pingpong', label: '乒乓球', cw: '个', noun: '乒乓球', group: 'i_daily', kind: 'mass', toBase: 2.7, level: 'standard', source: '国际乒联规则 2.3.3：球重 2.7 克' },
+    { id: 'n_a4', label: 'A4 纸', cw: '张', noun: 'A4 纸', group: 'i_daily', kind: 'mass', toBase: A4_G, level: 'derived', source: 'ISO 216：A4 为 210×297 毫米，按最常见的 80 克/平方米复印纸 = 4.9896 克' },
+    { id: 'n_egg', label: '鸡蛋', cw: '个', noun: '鸡蛋', group: 'i_daily', kind: 'mass', toBase: 61, level: 'derived', source: 'SB/T 10638-2011《鲜鸡蛋、鲜鸭蛋分级》中等蛋（M 级）单枚 58～64 克，取中值 61 克（用户 2026-10-08 选；分级表经 T/GDFCA 048-2020 表 2 转引核对，SB/T 原文未取得）' },
+    { id: 'n_rmb1', label: '1 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(130, 63), level: 'unofficial', suggest: false, source: RMB_SRC + '（130×63 毫米）' },
+    { id: 'n_rmb5', label: '5 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(135, 63), level: 'unofficial', suggest: false, source: RMB_SRC + '（135×63 毫米）' },
+    { id: 'n_rmb10', label: '10 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(140, 70), level: 'unofficial', suggest: false, source: RMB_SRC + '（140×70 毫米）' },
+    { id: 'n_rmb20', label: '20 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(145, 70), level: 'unofficial', suggest: false, source: RMB_SRC + '（145×70 毫米）' },
+    { id: 'n_rmb50', label: '50 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: rmb(150, 70), level: 'unofficial', suggest: false, source: RMB_SRC + '（150×70 毫米）' },
+    { id: 'n_rmb100', label: '100 元', cw: '张', group: 'i_rmb', kind: 'mass', toBase: RMB100_G, level: 'unofficial', suggest: false, source: '155×77 毫米；约 1.15 克为第三方称量，中国人民银行未公布单张克重' },
+    { id: 'n_milk', label: '盒装牛奶', cw: '盒', noun: '牛奶', group: 'i_drink', kind: 'mass', vol: 250, toBase: 250 * dens('milk'), level: 'label', source: SRC.pack + '（250 毫升）× 牛奶密度 1.03（' + SRC.fao + '）' },
+    { id: 'n_cola', label: '罐装可乐', cw: '罐', noun: '可乐', group: 'i_drink', kind: 'mass', vol: 330, toBase: 330 * dens('water'), level: 'label', source: SRC.pack + '（330 毫升），按水的密度近似' },
+    { id: 'n_bottle', label: '瓶装水', cw: '瓶', noun: '矿泉水', group: 'i_drink', kind: 'mass', vol: 550, toBase: 550 * dens('water'), level: 'label', source: SRC.pack + '（550 毫升）× 水的密度' },
+    // 大包装两行是一条阶梯（400 克 → 50 千克），小的一行在上
+    { id: 'n_salt', label: '袋装盐', cw: '袋', noun: '盐', group: 'i_pack1', kind: 'mass', toBase: 400, level: 'label', source: SRC.pack + '（400 克）' },
+    { id: 'n_ream', label: '整包 A4', cw: '包', noun: 'A4 纸（500 张装）', group: 'i_pack1', kind: 'mass', toBase: 500 * A4_G, level: 'derived', source: '包装标称 500 张/包（一令）× 单张 4.9896 克（ISO 216，80 克纸）= 2494.8 克' },
+    { id: 'n_oil', label: '桶装油', cw: '桶', noun: '食用油', group: 'i_pack1', kind: 'mass', vol: 5000, toBase: 5000 * dens('oil'), level: 'label', source: SRC.pack + '（5 升）× 食用油密度 0.92（' + SRC.fao + '）' },
+    { id: 'n_rice', label: '袋装大米', cw: '袋', noun: '大米', group: 'i_pack2', kind: 'mass', toBase: 5000, level: 'label', source: SRC.pack + '（5 千克）' },
+    { id: 'n_jug', label: '桶装水', cw: '桶', noun: '桶装水', group: 'i_pack2', kind: 'mass', vol: 18900, toBase: 18900 * dens('water'), level: 'label', source: SRC.pack + '（18.9 升）× 水的密度' },
+    { id: 'n_cement', label: '袋装水泥', cw: '袋', noun: '水泥', group: 'i_pack2', kind: 'mass', toBase: 50000, level: 'standard', source: 'GB 175-2007《通用硅酸盐水泥》9.4：袋装水泥每袋净含量为 50 千克（2023 版条文原文未取得）' }
   ];
 
-  // density：克/毫升；granular=true 表示松紧不同误差大
-  var substances = [
-    { id: 'water', name: '水', density: 1.0, level: 'measured', source: SRC.fao + '（常温近似）' },
-    { id: 'milk', name: '牛奶', density: 1.03, range: [1.02, 1.05], level: 'measured', source: SRC.fao },
-    { id: 'oil', name: '食用油', density: 0.92, range: [0.914, 0.927], level: 'measured', source: SRC.fao + '（玉米/花生/大豆/橄榄油）' },
-    { id: 'rice', name: '生大米', density: 0.82, range: [0.72, 0.85], granular: true, level: 'measured', source: SRC.fao },
-    { id: 'flour', name: '面粉', density: 0.58, range: [0.48, 0.67], granular: true, level: 'measured', source: SRC.fao },
-    { id: 'sugar', name: '白糖', density: 0.88, range: [0.7, 0.95], granular: true, level: 'measured', source: SRC.fao },
-    { id: 'salt', name: '食盐', density: 1.22, range: [1.22, 1.38], granular: true, level: 'measured', source: SRC.fao }
-  ];
 
-  // 只收标准规定或包装标称（见文件头）。value：重量物品为克，容量物品为毫升
-  var items = [
-    { id: 'pingpong', emoji: '🏓', name: '乒乓球', unit: '个', kind: 'mass', value: 2.7, level: 'standard', source: '国际乒联规则 2.3.3：球重 2.7 克' },
-    { id: 'a4', emoji: '📄', name: 'A4 纸（80 克规格）', unit: '张', kind: 'mass', value: 4.99, level: 'derived', source: 'ISO 216：A4 为 210×297 毫米，× 80 克/平方米 = 4.99 克' },
-    { id: 'saltbag', emoji: '🧂', name: '一包盐', unit: '包', kind: 'mass', value: 400, level: 'label', source: SRC.pack },
-    { id: 'ricebag', emoji: '🛍️', name: '一袋大米', unit: '袋', kind: 'mass', value: 5000, level: 'label', source: SRC.pack },
-    { id: 'milkbox', emoji: '🧃', name: '一盒牛奶', unit: '盒', kind: 'volume', value: 250, level: 'label', source: SRC.pack },
-    { id: 'cola', emoji: '🥤', name: '一罐可乐', unit: '罐', kind: 'volume', value: 330, level: 'label', source: SRC.pack },
-    { id: 'bottle', emoji: '🧴', name: '一瓶矿泉水', unit: '瓶', kind: 'volume', value: 550, level: 'label', source: SRC.pack },
-    { id: 'oilbucket', emoji: '🛢️', name: '一桶食用油', unit: '桶', kind: 'volume', value: 5000, level: 'label', source: SRC.pack },
-    { id: 'waterjug', emoji: '🚰', name: '一桶桶装水', unit: '桶', kind: 'volume', value: 18900, level: 'label', source: SRC.pack }
-  ];
-
-  var WV_DATA = { levels: levels, groups: groups, units: units, substances: substances, items: items };
+  var WV_DATA = { levels: levels, groups: groups, units: units, substances: substances };
   if (typeof module !== 'undefined' && module.exports) module.exports = WV_DATA;
   else root.WV_DATA = WV_DATA;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
