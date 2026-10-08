@@ -82,13 +82,18 @@ async function run(W, H, dark) {
     const navTo = async (id) => { await c.ev(`document.querySelector('.nav-item[data-target=${id}]').click()`); await sleep(1000); };
     const cur = () => c.ev(`document.querySelector('.nav-item[aria-current=true]').dataset.target`);
     ok(`${tag} 导航默认高亮换算`, (await cur()) === 'cardConvert');
-    for (const id of ['cardObjects', 'cardItems']) {
+    ok(`${tag} 导航只有换算、物品两项（参照已并进物品）`, (await c.ev(`[...document.querySelectorAll('.nav-item')].map(b=>b.textContent).join()`)) === '换算,物品' && !(await c.ev(`!!document.getElementById('cardItems')`)));
+    {
+      const id = 'cardObjects';
       await navTo(id);
-      const g = await c.ev(`(()=>{const n=document.getElementById('sectionNav').getBoundingClientRect(),t=document.getElementById('${id}').getBoundingClientRect();return {navTop:Math.round(n.top),navBottom:Math.round(n.bottom),top:Math.round(t.top)}})()`);
-      // 参照卡在页底，滚不到正好贴住导航，只要求不被导航条盖住
-      const landed = id === 'cardItems' ? g.top >= g.navBottom : Math.abs(g.top - (g.navBottom + 8)) <= 2;
+      const g = await c.ev(`(()=>{const n=document.getElementById('sectionNav').getBoundingClientRect(),t=document.getElementById('${id}').getBoundingClientRect();return {navTop:Math.round(n.top),navBottom:Math.round(n.bottom),top:Math.round(t.top),bottom:Math.round(t.bottom),atEnd:scrollY+innerHeight>=document.documentElement.scrollHeight-2}})()`);
+      // 物品卡是最后一张：页面滚到底了还贴不住导航时（430 宽屏高 932），要求整张卡都在屏内
+      const landed = g.top >= g.navBottom && (g.top - g.navBottom <= 12 || (g.atEnd && g.bottom <= H));
       ok(`${tag} 导航跳到 ${id}、不被导航条盖住`, landed && g.navTop >= 0 && g.navTop <= 20, g);
       ok(`${tag} 导航高亮跟到 ${id}`, (await cur()) === id, await cur());
+      // 导航条上方的缝不能透出底下的格子（审查截图露出半截「打兰 / 盎司」）
+      const gap = await c.ev(`(()=>{const n=document.getElementById('sectionNav').getBoundingClientRect();const hit=[];for(let x=2;x<innerWidth;x+=20)for(let y=1;y<n.top;y+=3){const e=document.elementFromPoint(x,y);if(e&&e.closest('.cell,.cap,.refer-row'))hit.push(x+','+y)}return hit})()`);
+      ok(`${tag} 吸顶导航上方不透出下面的内容`, gap.length === 0, gap.slice(0, 5));
     }
     await overflow('导航跳转后');
     if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-3-nav.png`));
@@ -98,24 +103,49 @@ async function run(W, H, dark) {
 
     // 生活物品：输入几个/几张，克数、斤两、换算区全部跟着算；反过来输入斤也算出个数
     await typeInto(c, 'n_egg', '3');
-    ok(`${tag} 3 个鸡蛋 = 177 克`, (await val(c, 'g')) === '177');
+    ok(`${tag} 3 个鸡蛋 = 183 克`, (await val(c, 'g')) === '183');
     const sum = await c.ev(`document.getElementById('objSum').textContent`);
-    ok(`${tag} 物品卡合计`, sum.includes('177 克') && sum.includes('3两5.4钱'), sum);
+    ok(`${tag} 物品卡合计`, sum.includes('183 克') && sum.includes('3两6.6钱'), sum);
+    const cws = await c.ev(`[...document.querySelectorAll('#objects .cell')].map(e=>e.querySelector('.cw')?.textContent||'').join('')`);
+    ok(`${tag} 每个物品格都带量词`, cws.length === 18 && !cws.includes(' '), cws);
+    ok(`${tag} 读屏能听出是张数`, (await c.ev(`document.getElementById('u_n_rmb100').getAttribute('aria-label')`)) === '100 元，张数');
     await typeInto(c, 'n_rmb100', '100');
     ok(`${tag} 100 张百元 = 115 克`, (await val(c, 'g')) === '115');
     await typeInto(c, 'n_a4', '500');
     ok(`${tag} 500 张 A4 = 2494.8 克`, (await val(c, 'g')) === '2494.8');
     await typeInto(c, 'n_cola', '3');
-    ok(`${tag} 3 罐可乐（按水）= 990 克、合计带毫升`, (await val(c, 'g')) === '990' && (await c.ev(`document.getElementById('objSum').textContent`)).includes('990 毫升'));
+    ok(`${tag} 3 罐可乐 = 990 克、合计带内装毫升`, (await val(c, 'g')) === '990' && (await c.ev(`document.getElementById('objSum').textContent`)).includes('内装 990 毫升'));
+    const refer1 = await c.ev(`document.getElementById('refer').textContent`);
+    ok(`${tag} 不推荐起点格自己`, !refer1.includes('罐可乐'), refer1);
+    // 审查 bug：选面粉 / 食用油时，可乐、桶装水不能跟着变
+    await setSub(c, 'flour');
+    ok(`${tag} 按面粉时 3 罐可乐仍是 990 克`, (await val(c, 'g')) === '990', await val(c, 'g'));
+    ok(`${tag} 起点是物品时不提示粉粒只是大概`, !(await c.ev(`document.getElementById('refer').textContent`)).includes('大概'));
+    await setSub(c, 'oil');
+    await typeInto(c, 'n_jug', '1');
+    ok(`${tag} 按食用油时 1 桶桶装水仍是 18900 克`, (await val(c, 'g')) === '18900', await val(c, 'g'));
+    await setSub(c, 'water');
     await typeInto(c, 'jin', '1');
-    ok(`${tag} 1 斤 ≈ 8.47 个鸡蛋`, (await val(c, 'n_egg')) === '8.47458', await val(c, 'n_egg'));
+    ok(`${tag} 1 斤 ≈ 8.2 个鸡蛋（不带假精度）`, (await val(c, 'n_egg')) === '8.2', await val(c, 'n_egg'));
+    ok(`${tag} 1 斤 ≈ 434.8 张百元`, (await val(c, 'n_rmb100')) === '434.8', await val(c, 'n_rmb100'));
+    const capCut = await c.ev(`[...document.querySelectorAll('.cap')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>e.textContent)`);
+    ok(`${tag} 分组标题（含规格）不被截断`, capCut.length === 0, capCut);
     ok(`${tag} 人民币组标明非官方`, (await c.ev(`document.querySelector('[data-group=i_rmb] .cap').textContent`)).includes('非官方'));
     // 键盘弹出时浏览器把输入框滚进视野：不能停在吸顶导航条底下
     await c.ev(`scrollTo(0, document.body.scrollHeight)`); await sleep(100);
     const hid = await c.ev(`(()=>{const el=document.getElementById('u_n_pingpong');el.focus();const n=document.getElementById('sectionNav').getBoundingClientRect();return {cell:Math.round(el.parentNode.getBoundingClientRect().top),nav:Math.round(n.bottom)}})()`);
     ok(`${tag} 聚焦物品格不被导航条挡住`, hid.cell >= hid.nav, hid);
+    // 物品卡自己的归零：数字清空、物质回到水
+    await setSub(c, 'salt');
+    await c.ev(`document.activeElement.blur(); document.getElementById('btnReset2').click(); scrollTo(0,0)`);
+    ok(`${tag} 物品卡归零：清空且物质回到水`, !(await c.ev(`document.getElementById('objSum').textContent`)).includes('克') && (await val(c, 'g')) === '' && (await c.ev(`document.getElementById('sub').value`)) === 'water');
+    // 输入 0：参照行不留白
+    await typeInto(c, 'jin', '0');
+    ok(`${tag} 输入 0 时参照行有提示`, (await c.ev(`document.getElementById('refer').textContent`)).length > 0);
+    // 全角数字
+    await typeInto(c, 'jin', '１２');
+    ok(`${tag} 全角数字照收`, (await val(c, 'g')) === '6000', await val(c, 'g'));
     await c.ev(`document.activeElement.blur(); document.getElementById('btnReset').click(); scrollTo(0,0)`);
-    ok(`${tag} 归零后物品合计变回提示`, !(await c.ev(`document.getElementById('objSum').textContent`)).includes('克'));
 
     // 「更多单位」：默认收起、按钮在首屏内；展开后 36 格可见、标签不截断；状态刷新后记得
     ok(`${tag} 更多单位默认收起`, await c.ev(`document.getElementById('more').hidden && document.getElementById('btnMore').getAttribute('aria-expanded')==='false'`));
@@ -144,7 +174,7 @@ async function run(W, H, dark) {
     ok(`${tag} 1 金衡盎司 = 31.1035 克`, (await val(c, 'g')) === '31.1035');
 
     // 超长 / 超小的数字也要显示得下（展开状态，覆盖全部 57 格）
-    for (const [u, t] of [['t', '99999999'], ['qian', '0.001'], ['ug', '0.001'], ['ton_l', '99999999']]) {
+    for (const [u, t] of [['t', '99999999'], ['qian', '0.001'], ['ug', '0.001'], ['ton_l', '99999999'], ['n_cement', '99999999'], ['n_pingpong', '0.001'], ['n_rmb1', '99999999']]) {
       await typeInto(c, u, t);
       const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
       ok(`${tag} ${u}=${t} 时数字不被截断`, clipped.length === 0, clipped);
@@ -186,20 +216,23 @@ async function run(W, H, dark) {
     await sleep(300);
     if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-1-top.png`));
 
-    // 生活参照：只有标准/包装标称，点一下填进换算并回到顶部
-    const counts = await c.ev(`(()=>{const m=document.querySelectorAll('.item').length;document.getElementById('tabVolume').click();const v=document.querySelectorAll('.item').length;document.getElementById('tabMass').click();return {m,v}})()`);
-    const want = await c.ev(`({m:WV_DATA.items.filter(i=>i.kind==='mass').length, v:WV_DATA.items.filter(i=>i.kind==='volume').length})`);
-    ok(`${tag} 参照两页物品数`, counts.m === want.m && counts.v === want.v, { counts, want });
-    ok(`${tag} 参照里没有经验值`, !(await c.ev(`document.getElementById('cardItems').textContent`)).includes('经验'));
-    await c.ev(`document.getElementById('cardItems').scrollIntoView({block:'start'})`);
-    await sleep(200);
-    if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-2-items.png`));
-    await c.ev(`document.getElementById('tabVolume').click(); document.querySelector('.item[data-item="bottle"]').click()`);
-    await sleep(900);
-    ok(`${tag} 矿泉水填入 550 毫升`, (await val(c, 'ml')) === '550');
-    ok(`${tag} 起点格换成毫升`, (await c.ev(`[...document.querySelectorAll('.cell.src')].map(e=>e.dataset.unit).join()`)) === 'ml');
-    ok(`${tag} 回到换算区顶部`, (await c.ev('scrollY')) < 5);
-    await overflow('参照');
+    if (SHOTS) { await c.ev(`document.getElementById('cardObjects').scrollIntoView({block:'start'})`); await sleep(200); await c.vshot(path.join(SHOTS, `${tag}-2-objects.png`)); }
+
+    // 性能：CPU 降速 6 倍（模拟中低端安卓），展开「更多」后连按 20 个键。
+    //   判的是主线程 JS（含它逼出来的同步重排）的中位数：改前中位 526ms、最大 1908ms，改后中位约 9ms。
+    //   判据 50ms 是我定的经验值（不是标准），给环境噪声留了余量；偶发的 GC 尖峰不判，所以取中位数。
+    //   随后的排版绘制时间只记录不判：headless 软件渲染下同一操作在 50～650ms 间乱跳，测不准，要真机看
+    await c.ev(`if (document.getElementById('more').hidden) document.getElementById('btnMore').click()`);
+    await c.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+    const cost = await c.ev(`(async()=>{const el=document.getElementById('u_jin');el.focus();const js=[],fr=[];const frame=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));await frame();for(const s of ['1','12','123','1234','12345','99999999','0.001','5','55','555','5555','0.5','0.05','7','77','777','3.14','31.4','314','3140']){el.value=s;const a=performance.now();el.dispatchEvent(new Event('input',{bubbles:true}));const b=performance.now();await frame();js.push(Math.round(b-a));fr.push(Math.round(performance.now()-b));}return {js,fr}})()`);
+    await c.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    const med = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+    console.log(`  ${tag} 每键 JS 中位 ${med(cost.js)}ms / 最大 ${Math.max(...cost.js)}ms；排版绘制中位 ${med(cost.fr)}ms（CPU÷6，只记录）`);
+    ok(`${tag} 每按一个键 JS 中位数 < 50ms（CPU÷6，实测 ${med(cost.js)}ms）`, med(cost.js) < 50, cost.js);
+    await c.ev(`document.getElementById('btnMore').click(); document.activeElement.blur(); document.getElementById('btnReset').click(); scrollTo(0,0)`);
+    await typeInto(c, 'jin', '1.25');
+    await c.ev(`document.activeElement.blur(); scrollTo(0,0)`);
+    await overflow('物品卡');
 
     // 下拉刷新：先测「输入框聚焦时不接管」（会清掉刚输的数），再测正常下拉真的刷新
     const pull = async () => {
@@ -219,6 +252,8 @@ async function run(W, H, dark) {
     let reloaded = false;
     for (let i = 0; i < 30 && !reloaded; i++) { try { reloaded = (await c.ev(`window.__alive === undefined && document.readyState === 'complete'`)) === true; } catch (e) {} if (!reloaded) await sleep(200); }
     ok(`${tag} 正常下拉触发刷新`, reloaded);
+    await sleep(300);
+    ok(`${tag} 刷新后输入还在`, (await val(c, 'jin')) === '1.25' && (await val(c, 'g')) === '625' && (await c.ev(`document.querySelector('.cell.src')?.dataset.unit`)) === 'jin');
 
     // 刷新后再测归零
     await typeInto(c, 'jin', '3');
