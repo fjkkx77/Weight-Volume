@@ -38,10 +38,22 @@
       if (menu.hidden || btn.contains(e.target)) return;
       var link = e.target.closest && e.target.closest('.switch-menu a');
       if (link && link.getAttribute('aria-current') === 'page') { e.preventDefault(); set(false); return; }
+      // 点菜单里的链接：先收起菜单、等收起的画面真正画出来，再跳转。
+      //   Safari 离开页面时会给它拍快照，左滑返回的动画里显示的就是这张快照；
+      //   跳转时菜单还开着，返回时就会先看到一个开着的菜单（2026-10-09 用户真机截图）。
+      //   按住 Ctrl / ⌘ / Shift 点（新标签页打开）不拦
+      if (link && !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        set(false);
+        var href = link.href;
+        requestAnimationFrame(function () { requestAnimationFrame(function () { location.href = href; }); });
+        return;
+      }
       if (!menu.contains(e.target)) set(false);
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) { set(false); btn.focus(); } });
-    // 从别的页按「返回」回来时，浏览器可能直接恢复上次的画面（bfcache）：别让菜单还开着
+    // 兜底：离开页面时收起；从别的页按「返回」回来时，浏览器可能直接恢复上次的画面（bfcache），也再收一次
+    window.addEventListener('pagehide', function () { set(false); });
     window.addEventListener('pageshow', function () { set(false); });
     return { isOpen: function () { return !menu.hidden; } };
   }

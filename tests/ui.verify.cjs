@@ -45,6 +45,7 @@ const val = (c, unitId) => c.ev(`document.getElementById('u_${unitId}').value`);
 const setSub = (c, id) => c.ev(`(()=>{const s=document.getElementById('sub');s.value='${id}';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
 
 const PAGES = require('../pages.js');
+const RATES = require('../rates.js');
 
 // 标题切换菜单：点标题弹出、列出全部换算、当前页描边、点外面收起、不超出屏幕、每项 ≥44px
 async function switcherChecks(c, tag, W, id) {
@@ -73,11 +74,17 @@ async function runCollection(W, H, dark) {
     // ---------- 目录 ----------
     await c.goto(URL);
     ok(`${tag} 目录：标题`, (await c.ev('document.title')) === '换算合集');
-    const tiles = await c.ev(`[...document.querySelectorAll('.tile')].map(a=>{const r=a.getBoundingClientRect();return {href:a.getAttribute('href'),w:Math.round(r.width),h:Math.round(r.height),bottom:Math.round(r.bottom),cut:[...a.querySelectorAll('b,small')].some(e=>e.scrollWidth>e.clientWidth+1)}})`);
+    const tiles = await c.ev(`[...document.querySelectorAll('.tile')].map(a=>{const r=a.getBoundingClientRect();return {href:a.getAttribute('href'),w:Math.round(r.width),h:Math.round(r.height),bottom:Math.round(r.bottom),cut:a.querySelector('b').scrollWidth>a.querySelector('b').clientWidth+1||(${W >= 390}&&a.querySelector('small').scrollWidth>a.querySelector('small').clientWidth+1),lines:Math.round(a.querySelector('small').getBoundingClientRect().height/parseFloat(getComputedStyle(a.querySelector('small')).lineHeight))}})`);
+    // 代表单位只占一行（截图里「密位」被拆成两行）；390 / 430 宽要完整显示，320 允许省略号
+    ok(`${tag} 目录：代表单位一行`, tiles.every(t => t.lines === 1), tiles.map(t => t.lines));
     ok(`${tag} 目录：每个换算一个格子`, tiles.map(t => t.href).join() === PAGES.map(p => p.file).join(), tiles.map(t => t.href));
     ok(`${tag} 目录：格子 ≥44px、文字不截断`, tiles.every(t => t.w >= 44 && t.h >= 44 && !t.cut), tiles);
-    ok(`${tag} 目录：一屏看全`, Math.max(...tiles.map(t => t.bottom)) <= H, tiles.map(t => t.bottom));
-    ok(`${tag} 目录：2 列排满`, tiles.length % 2 === 0, tiles.length);
+    // 一屏看全：390 / 430 判（85% 给 Safari 工具栏留位置，同换算页）；320×568 太矮，只记录
+    const hubBottom = Math.max(...tiles.map(t => t.bottom));
+    if (W >= 390) ok(`${tag} 目录：一屏看全（底边 ${hubBottom} ≤ ${Math.round(H * 0.85)}）`, hubBottom <= H * 0.85, hubBottom);
+    else console.log(`  ${tag} 目录底边 ${hubBottom}（屏高 ${H}，不判）`);
+    const cols = await c.ev(`getComputedStyle(document.querySelector('.hub-grid')).gridTemplateColumns.split(' ').length`);
+    ok(`${tag} 目录：3 列排满`, cols === 3 && tiles.length % 3 === 0, { cols, n: tiles.length });
     await overflow('目录');
     if (SHOTS) await c.vshot(path.join(SHOTS, `${tag}-hub.png`));
     await c.ev(`document.querySelector('.tile[data-page=length]').click()`);
@@ -87,7 +94,7 @@ async function runCollection(W, H, dark) {
     for (const p of PAGES.filter(x => x.dataVar)) {
       const t2 = `${tag} ${p.id}`;
       await c.goto(URL + p.file);
-      await c.ev(`sessionStorage.clear(); localStorage.clear()`);
+      await c.ev(`sessionStorage.clear(); localStorage.clear()${p.id === 'currency' ? "; localStorage.setItem('wv.currency.nolive','1')" : ''}`);
       await c.goto(URL + p.file);
       const n = await c.ev(`window.${p.dataVar}.units.length`);
       ok(`${t2} 标题`, (await c.ev('document.title')) === p.title);
@@ -110,7 +117,18 @@ async function runCollection(W, H, dark) {
         // 极小值写成科学计数（tinySci）：1 米 = 6.685×10⁻¹² 天文单位，1 平方厘米 = 1×10⁻¹⁰ 平方千米
         length: [['m', '1', { chi: '3', cun: '30', cm: '100', ft: '3.28084', au: '6.685×10⁻¹²' }], ['mi', '1', { m: '1609.34', km: '1.60934' }], ['li', '2', { km: '1' }]],
         area: [['ha', '1', { mu: '15', m2: '10000', are: '100' }], ['mu', '1', { m2: '666.667', chi2: '6000' }], ['acre', '1', { m2: '4046.86' }], ['cm2', '1', { km2: '1×10⁻¹⁰' }]],
-        temperature: [['c', '37', { f: '98.6', k: '310.15' }], ['f', '-40', { c: '-40' }], ['k', '0', { c: '-273.15', f: '-459.67' }]]
+        temperature: [['c', '37', { f: '98.6', k: '310.15' }], ['f', '-40', { c: '-40' }], ['k', '0', { c: '-273.15', f: '-459.67' }]],
+        // 第二批（期望值和独立算式核对过：100/3.6、100/1.609344、π/2、3.6e6/4184……）
+        speed: [['kmh', '100', { ms: '27.7778', mph: '62.1371', kn: '53.9957' }], ['kn', '1', { kmh: '1.852' }]],
+        angle: [['deg', '90', { rad: '1.5708', gon: '100', min: '5400' }], ['rev', '1', { deg: '360', mil_nato: '6400', mil6000: '6000' }]],
+        fuel: [['l100km', '8', { kmpl: '12.5', mpg_us: '29.4018', mpg_uk: '35.3101' }], ['mpg_us', '30', { l100km: '7.84049', kmpl: '12.7543' }]],
+        energy: [['kcal', '1', { kj: '4.184', j: '4184', cal: '1000' }], ['kwh', '1', { mj: '3.6', kcal: '860.421', btu: '3412.14' }]],
+        power: [['ps', '1', { w: '735.499', kw: '0.735499', hp: '0.98632' }]],
+        pressure: [['atm', '1', { kpa: '101.325', mmhg: '760', psi: '14.6959', bar: '1.01325' }], ['bar', '2.5', { psi: '36.2594', kpa: '250' }]],
+        force: [['kgf', '1', { n: '9.80665', lbf: '2.20462', gf: '1000' }]],
+        // 货币：关掉联网、用仓库快照，期望值从快照现算（5 位有效数字）
+        currency: [['cny', '100', Object.fromEntries(['usd', 'hkd', 'jpy', 'twd'].map(k => [k, String(Number((100 / RATES.rates[k.toUpperCase()].cny).toPrecision(5)))]))],
+          ['usd', '1', { cny: String(Number(RATES.rates.USD.cny.toPrecision(5))) }]]
       }[p.id];
       for (const [from, text, want] of checks) {
         await typeInto(c, from, text);
@@ -120,14 +138,19 @@ async function runCollection(W, H, dark) {
         ok(`${t2} ${text} ${from} 只有起点格高亮`, (await c.ev(`[...document.querySelectorAll('.cell.src')].map(e=>e.dataset.unit).join()`)) === from);
       }
       // 「更多」：展开后全部可见、每格 ≥44、名字不截断；记住展开状态
-      await c.ev(`document.activeElement.blur(); document.getElementById('btnMore').click()`);
-      await sleep(100);
+      //   没有「更多」单位的页（力）：按钮和收起区都不该出现
       const wantMore = await c.ev(`window.${p.dataVar}.units.filter(u=>window.${p.dataVar}.groups.find(g=>g.id===u.group).tier==='more').length`);
-      const vis = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height>=44).length`);
-      ok(`${t2} 展开后「更多」${wantMore} 格全部可见`, vis === wantMore && wantMore > 0, vis);
-      ok(`${t2} 展开后按钮变成收起`, (await c.ev(`document.getElementById('moreText').textContent`)) === '收起');
-      const cut2 = await c.ev(`[...document.querySelectorAll('#more .cell label, #more .cap')].filter(l=>l.scrollWidth>l.clientWidth+1).map(l=>l.textContent)`);
-      ok(`${t2} 更多区名称不截断`, cut2.length === 0, cut2);
+      if (!wantMore) {
+        ok(`${t2} 没有更多单位时不显示「更多」按钮`, await c.ev(`!document.getElementById('btnMore') && !document.getElementById('more')`));
+      } else {
+        await c.ev(`document.activeElement.blur(); document.getElementById('btnMore').click()`);
+        await sleep(100);
+        const vis = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height>=44).length`);
+        ok(`${t2} 展开后「更多」${wantMore} 格全部可见`, vis === wantMore, vis);
+        ok(`${t2} 展开后按钮变成收起`, (await c.ev(`document.getElementById('moreText').textContent`)) === '收起');
+        const cut2 = await c.ev(`[...document.querySelectorAll('#more .cell label, #more .cap')].filter(l=>l.scrollWidth>l.clientWidth+1).map(l=>l.textContent)`);
+        ok(`${t2} 更多区名称不截断`, cut2.length === 0, cut2);
+      }
       // 极端值：数字都放得下、同一行字号一致
       for (const [u, t] of (p.id === 'temperature' ? [['c', '99999999'], ['k', '0.001'], ['c', '-273.15']] : [[checks[0][0], '99999999'], [checks[0][0], '0.000001']])) {
         await typeInto(c, u, t);
@@ -138,6 +161,28 @@ async function runCollection(W, H, dark) {
       ok(`${t2} 同一行字号一致`, uneven.length === 0, uneven);
       await overflow(p.id + ' 极端值');
 
+      if (p.id === 'fuel') {
+        await typeInto(c, 'l100km', '0');
+        const inv = await c.ev(`({bad:document.querySelector('.cell[data-unit=l100km]').classList.contains('invalid'),k:document.getElementById('u_kmpl').value,refer:document.getElementById('refer').textContent,own:document.getElementById('u_l100km').value})`);
+        ok(`${t2} 0 升/百公里 标红、不算、说明原因`, inv.bad && inv.k === '' && inv.refer.includes('不能是 0') && inv.own === '0', inv);
+      }
+      if (p.id === 'currency') {
+        const note = await c.ev(`document.getElementById('liveNote').textContent`);
+        ok(`${t2} 写明汇率日期、来源、不是银行牌价`, note.includes(RATES.date.slice(0, 4) + ' 年') && note.includes('中间价') && note.includes('不是银行买卖价') && note.includes('之前存下的'), note);
+        // 实时更新：把 fetch 换成假的接口（欧元基准原始数），重新打开页面，汇率要换成新的、说明里不再说「之前存下的」
+        await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const D='2099-01-02'; const mk=(p,pairs)=>pairs.map(([q,r])=>({date:D,base:'EUR',quote:q,rate:r}));
+          const data={CFETS:mk('CFETS',[['CNY',8],['EUR',1],['USD',1.6],['HKD',8],['JPY',160],['GBP',0.8],['AUD',1.6],['NZD',1.6],['SGD',1.6],['CHF',1],['CAD',1.6],['MOP',8],['MYR',4],['RUB',80],['ZAR',16],['KRW',1600],['AED',4],['SAR',4],['HUF',400],['PLN',4],['DKK',8],['SEK',8],['NOK',8],['TRY',40],['MXN',16],['THB',40]]),
+            ECB:mk('ECB',[['CNY',8],['BRL',4],['CZK',20],['IDR',16000],['INR',80],['PHP',40],['RON',4]]),AMCM:mk('AMCM',[['CNY',8],['TWD',32]])};
+          window.fetch = url => { const p = /providers=(\\w+)/.exec(url)[1]; return Promise.resolve({ ok: true, json: () => Promise.resolve(data[p]) }); }; })()` });
+        await c.ev(`localStorage.removeItem('wv.currency.nolive')`);
+        await c.goto(URL + p.file);
+        await sleep(300);
+        await typeInto(c, 'usd', '1');
+        const live = { cny: await val(c, 'cny'), note: await c.ev(`document.getElementById('liveNote').textContent`) };
+        ok(`${t2} 拉到新汇率后换算跟着变（假接口：1 美元 = 8 ÷ 1.6 = 5 人民币）`, live.cny === '5' && live.note.includes('2099 年 1 月 2 日') && !live.note.includes('之前存下的'), live);
+        await c.ev(`localStorage.setItem('wv.currency.nolive','1'); localStorage.removeItem('wv.currency.rates')`);
+        await c.ev(`document.getElementById('btnReset').click()`);
+      }
       if (p.id === 'temperature') {
         // 负号：只打一个「-」不标红；± 键给正在输入的格子加负号、焦点不丢（键盘不收）
         await typeInto(c, 'c', '-');
@@ -167,7 +212,7 @@ async function runCollection(W, H, dark) {
       await c.goto(URL + p.file);
       const k0 = Object.keys(first[2])[0];
       ok(`${t2} 刷新后输入还在`, (await val(c, first[0])) === first[1] && (await val(c, k0)) === first[2][k0]);
-      ok(`${t2} 刷新后展开状态记得`, await c.ev(`!document.getElementById('more').hidden`));
+      if (wantMore) ok(`${t2} 刷新后展开状态记得`, await c.ev(`!document.getElementById('more').hidden`));
       await c.ev(`document.getElementById('btnReset').click()`);
       ok(`${t2} 归零清空`, (await val(c, k0)) === '' && (await c.ev(`document.querySelectorAll('.cell.src').length`)) === 0);
       ok(`${t2} 无 JS 报错`, c.errors.length === 0, c.errors);
@@ -175,9 +220,19 @@ async function runCollection(W, H, dark) {
     // 菜单里点别的换算能跳过去，点「全部换算」回目录
     await c.ev(`document.getElementById('btnSwitch').click()`);
     await sleep(150);
+    // 离开页面那一刻菜单必须已经收起：Safari 拿这一刻的画面做左滑返回的快照（用户真机截图：返回时先闪出菜单）
+    await c.ev(`window.addEventListener('beforeunload', () => sessionStorage.setItem('menuAtLeave', String(document.getElementById('switchMenu').hidden)))`);
     await c.ev(`document.querySelector('#switchMenu a[href="area.html"]').click()`);
     await sleep(800);
     ok(`${tag} 菜单跳到面积换算`, (await c.ev('location.pathname')).endsWith('/area.html'));
+    ok(`${tag} 跳走时菜单已收起（返回快照里不带菜单）`, (await c.ev(`sessionStorage.getItem('menuAtLeave')`)) === 'true', await c.ev(`sessionStorage.getItem('menuAtLeave')`));
+    // 返回上一页（bfcache 恢复）后菜单也是收起的
+    await c.ev('history.back()');
+    await sleep(800);
+    const lastFile = PAGES.filter(x => x.dataVar).slice(-1)[0].file;   // 循环里最后打开的那页
+    ok(`${tag} 返回后菜单是收起的`, (await c.ev(`location.pathname.endsWith('/${lastFile}') && document.getElementById('switchMenu').hidden`)) === true, await c.ev('location.pathname'));
+    await c.ev(`history.forward()`);
+    await sleep(800);
     await c.ev(`document.getElementById('btnSwitch').click()`);
     await sleep(150);
     await c.ev(`document.querySelector('#switchMenu a.home').click()`);
