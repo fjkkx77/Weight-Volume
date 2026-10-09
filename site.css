@@ -79,7 +79,13 @@ button, select { font: inherit; color: inherit; touch-action: manipulation; }
   contain: strict; }
 .cell label { font-size: 12.5px; font-weight: 600; color: var(--text-2); line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; }
-.cell input { width: 100%; min-width: 0; height: 26px; border: none; outline: none; background: transparent; padding: 0;
+/* 输入框的真实字号必须一直 >= 16px：iPhone Safari 点进字号 < 16px 的输入框会自动放大整页（2026-10-10 用户真机踩到）。
+   所以字号钉死 17px，长数字要「缩小」时改用 --k 缩放：框按 1/k 加宽、贴右缩回原宽，看起来和直接改字号一样。
+   .iw 是量可用宽度和定位用的外壳（grid.js 读它的 clientWidth） */
+.iw { display: block; min-width: 0; height: 26px; }
+.cell input { --k: 1; display: block; width: calc(100% / var(--k)); margin-left: calc(100% - 100% / var(--k));
+  transform: scale(var(--k)); transform-origin: 100% 50%;
+  height: 26px; border: none; outline: none; background: transparent; padding: 0;
   color: var(--text); font-family: inherit; font-size: 17px; font-weight: 700; text-align: right;
   font-variant-numeric: tabular-nums; }
 .cell input::placeholder { color: var(--text-2); opacity: .45; font-weight: 600; }
@@ -90,7 +96,7 @@ button, select { font: inherit; color: inherit; touch-action: manipulation; }
 .cell.invalid input { color: var(--invalid); }
 /* 物品格：数字后面跟量词（张 / 个 / 罐），否则「100 元」格里的 434.8 会被读成钱数 */
 .vrow { display: flex; align-items: baseline; gap: 2px; min-width: 0; }
-.vrow input { flex: 1 1 0; width: 0; }
+.vrow .iw { flex: 1 1 0; width: 0; }
 .cw { flex: none; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .cell.src .cw { color: var(--accent); }
 /* 量字宽用：和格子里的数字同字体，按 17px 量一次，其他字号按比例换算（不再逐个字号改样式再读 scrollWidth） */

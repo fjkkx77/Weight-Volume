@@ -170,11 +170,15 @@ async function runCollection(W, H, dark) {
       // 极端值：数字都放得下、同一行字号一致
       for (const [u, t] of (p.id === 'temperature' ? [['c', '99999999'], ['k', '0.001'], ['c', '-273.15']] : [[checks[0][0], '99999999'], [checks[0][0], '0.000001']])) {
         await typeInto(c, u, t);
-        const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+        const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>(i.scrollWidth-i.clientWidth)*(parseFloat(i.style.getPropertyValue('--k'))||1)>1).map(i=>i.id+'='+i.value)`);
         ok(`${t2} ${u}=${t} 时数字不被截断`, clipped.length === 0, clipped);
       }
-      const uneven = await c.ev(`(()=>{const bad=[];document.querySelectorAll('.grid').forEach(g=>{const cs=[...g.children];for(let i=0;i<cs.length;i+=3){const f=cs.slice(i,i+3).map(c=>getComputedStyle(c.querySelector('input')).fontSize);if(new Set(f).size>1)bad.push(cs[i].dataset.unit+':'+f.join('/'))}});return bad})()`);
+      const uneven = await c.ev(`(()=>{const bad=[];document.querySelectorAll('.grid').forEach(g=>{const cs=[...g.children];for(let i=0;i<cs.length;i+=3){const f=cs.slice(i,i+3).map(c=>{const st=getComputedStyle(c.querySelector('input'));return (parseFloat(st.fontSize)*(parseFloat(st.getPropertyValue('--k'))||1)).toFixed(2)});if(new Set(f).size>1)bad.push(cs[i].dataset.unit+':'+f.join('/'))}});return bad})()`);
       ok(`${t2} 同一行字号一致`, uneven.length === 0, uneven);
+      const zoomy = await c.ev(`[...document.querySelectorAll('input,select,textarea')].filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>e.id+'='+getComputedStyle(e).fontSize)`);
+      ok(`${t2} 输入框真实字号都 ≥16px（iPhone 点进 <16px 的框会自动放大页面）`, zoomy.length === 0, zoomy);
+      const outside = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>{const r=i.getBoundingClientRect(),b=i.closest('.cell').getBoundingClientRect();return r.width&&(r.left<b.left-0.5||r.right>b.right+0.5)}).map(i=>i.id)`);
+      ok(`${t2} 缩小后的数字框不出格子`, outside.length === 0, outside);
       await overflow(p.id + ' 极端值');
 
       if (p.id === 'fuel') {
@@ -421,8 +425,12 @@ async function run(W, H, dark) {
     const ragged = await c.ev(`[...document.querySelectorAll('.grid')].filter(g=>g.children.length%3!==0).length`);
     ok(`${tag} 每个网格都排满 3 列`, ragged === 0, ragged);
     // 同一行三格的数字字号一致（不能一格大一格小）
-    const uneven = await c.ev(`(()=>{const bad=[];document.querySelectorAll('.grid').forEach(g=>{const cs=[...g.children];for(let i=0;i<cs.length;i+=3){const f=cs.slice(i,i+3).map(c=>getComputedStyle(c.querySelector('input')).fontSize);if(new Set(f).size>1)bad.push(cs[i].dataset.unit+':'+f.join('/'))}});return bad})()`);
+    const uneven = await c.ev(`(()=>{const bad=[];document.querySelectorAll('.grid').forEach(g=>{const cs=[...g.children];for(let i=0;i<cs.length;i+=3){const f=cs.slice(i,i+3).map(c=>{const st=getComputedStyle(c.querySelector('input'));return (parseFloat(st.fontSize)*(parseFloat(st.getPropertyValue('--k'))||1)).toFixed(2)});if(new Set(f).size>1)bad.push(cs[i].dataset.unit+':'+f.join('/'))}});return bad})()`);
     ok(`${tag} 同一行字号一致`, uneven.length === 0, uneven);
+    const zoomy = await c.ev(`[...document.querySelectorAll('input,select,textarea')].filter(e=>parseFloat(getComputedStyle(e).fontSize)<16).map(e=>e.id+'='+getComputedStyle(e).fontSize)`);
+    ok(`${tag} 输入框真实字号都 ≥16px（iPhone 点进 <16px 的框会自动放大页面）`, zoomy.length === 0, zoomy);
+    const outside = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>{const r=i.getBoundingClientRect(),b=i.closest('.cell').getBoundingClientRect();return r.width&&(r.left<b.left-0.5||r.right>b.right+0.5)}).map(i=>i.id)`);
+    ok(`${tag} 缩小后的数字框不出格子`, outside.length === 0, outside);
     const cut2 = await c.ev(`[...document.querySelectorAll('#more .cell label')].filter(l=>l.scrollWidth>l.clientWidth).map(l=>l.textContent)`);
     ok(`${tag} 更多单位的名称没被截断`, cut2.length === 0, cut2);
     const small2 = await c.ev(`[...document.querySelectorAll('#more .cell')].filter(e=>e.getBoundingClientRect().height<44).length`);
@@ -439,7 +447,7 @@ async function run(W, H, dark) {
     // 超长 / 超小的数字也要显示得下（展开状态，覆盖全部 57 格）
     for (const [u, t] of [['t', '99999999'], ['qian', '0.001'], ['ug', '0.001'], ['ton_l', '99999999'], ['n_cement', '99999999'], ['n_pingpong', '0.001'], ['n_rmb1', '99999999']]) {
       await typeInto(c, u, t);
-      const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+      const clipped = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>(i.scrollWidth-i.clientWidth)*(parseFloat(i.style.getPropertyValue('--k'))||1)>1).map(i=>i.id+'='+i.value)`);
       ok(`${tag} ${u}=${t} 时数字不被截断`, clipped.length === 0, clipped);
     }
     await overflow('超长数字');
@@ -447,7 +455,7 @@ async function run(W, H, dark) {
     ok(`${tag} 展开状态刷新后记得`, await c.ev(`!document.getElementById('more').hidden`));
     // 刷新后字号适配要在可见状态下重新算过：极端值仍不能被截断
     await typeInto(c, 't', '99999999');
-    const clipped3 = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+    const clipped3 = await c.ev(`[...document.querySelectorAll('.cell input')].filter(i=>(i.scrollWidth-i.clientWidth)*(parseFloat(i.style.getPropertyValue('--k'))||1)>1).map(i=>i.id+'='+i.value)`);
     ok(`${tag} 刷新后展开区数字不被截断`, clipped3.length === 0, clipped3);
     await c.ev(`document.getElementById('btnMore').click()`);
     ok(`${tag} 再点收起`, await c.ev(`document.getElementById('more').hidden`));
@@ -455,7 +463,7 @@ async function run(W, H, dark) {
     await typeInto(c, 'kg', '99999999');
     await c.ev(`document.getElementById('btnMore').click()`);
     await sleep(100);
-    const clipped4 = await c.ev(`[...document.querySelectorAll('#more .cell input')].filter(i=>i.scrollWidth>i.clientWidth+1).map(i=>i.id+'='+i.value)`);
+    const clipped4 = await c.ev(`[...document.querySelectorAll('#more .cell input')].filter(i=>(i.scrollWidth-i.clientWidth)*(parseFloat(i.style.getPropertyValue('--k'))||1)>1).map(i=>i.id+'='+i.value)`);
     ok(`${tag} 收起时输入、展开后不被截断`, clipped4.length === 0, clipped4);
     await c.ev(`document.getElementById('btnMore').click()`);
     await c.ev(`document.getElementById('btnReset').click()`);

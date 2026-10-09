@@ -41,6 +41,7 @@
       var cells = D.units.filter(function (u) { return u.group === g.id; }).map(function (u) {
         var input = '<input id="u_' + u.id + '" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" data-unit="' + u.id + '"' +
           (u.cw ? ' aria-label="' + esc(u.label + '，' + u.cw + '数') + '"' : '') + '>';
+        input = '<span class="iw">' + input + '</span>';
         return '<div class="cell" data-unit="' + u.id + '"><label for="u_' + u.id + '">' + esc(u.label) + '</label>' +
           (u.cw ? '<div class="vrow">' + input + '<span class="cw" aria-hidden="true">' + esc(u.cw) + '</span></div>' : input) + '</div>';
       }).join('');
@@ -89,11 +90,17 @@
       for (var i = 0; i < SIZES.length; i++) if (w * SIZES[i] / SIZES[0] <= avail - 1.5) return SIZES[i];
       return 0;
     }
+    // 最小档也放不下（如 320 宽下「99999999 张」）：按比例再缩一点让数字完整露出来，最低 10px，再长就只能在框里滚动
+    function squeeze(t, avail) {
+      var w = textWidth(t), last = SIZES[SIZES.length - 1];
+      if (!avail || !w) return last;
+      return Math.max(10, Math.min(last, SIZES[0] * (avail - 1.5) / w));
+    }
     var availCache = null;
     function availOf() {
       if (!availCache) {
         availCache = {};
-        D.units.forEach(function (u) { if (inputs[u.id]) availCache[u.id] = inputs[u.id].clientWidth; });
+        D.units.forEach(function (u) { if (inputs[u.id]) availCache[u.id] = inputs[u.id].parentNode.clientWidth; });
       }
       return availCache;
     }
@@ -113,13 +120,18 @@
       for (var i = 0; i < ts.length; i++) { var sz = sizeFor(ts[i], avail); if (sz) return { text: ts[i], size: sz }; }
       // 3 位有效数字都放不下的只会是极小的数（如 0.000000005 吨）：在这个精度下就是约等于 0
       if (Math.abs(x) < 1) return { text: '≈0', size: sizeFor('≈0', avail) || SIZES[SIZES.length - 1] };
-      return { text: ts[ts.length - 1], size: SIZES[SIZES.length - 1] };
+      return { text: ts[ts.length - 1], size: squeeze(ts[ts.length - 1], avail) };
+    }
+    // 显示字号：真实字号钉在 17px（iPhone 点进 < 16px 的输入框会自动放大页面），这里只改缩放比例，见 site.css .iw
+    function setSize(el, px) {
+      if (px && px !== SIZES[0]) el.style.setProperty('--k', px / SIZES[0]);
+      else el.style.removeProperty('--k');
     }
     // 起点格 / 打到一半的非法输入：只按它自己的文字定字号
     function fitOwn(el) {
       var a = availOf()[el.dataset.unit];
       var sz = a ? sizeFor(el.value, a) : 0;
-      el.style.fontSize = (sz || SIZES[SIZES.length - 1]) + 'px';
+      setSize(el, sz || squeeze(el.value, a));
     }
 
     function recompute() {
@@ -131,7 +143,7 @@
       var plans = {};
       D.units.forEach(function (u) {
         if (!inputs[u.id]) return;   // 旧页面 + 新数据（缓存错配）时跳过不认识的格子，别让整页报错
-        if (u.id === state.unitId) plans[u.id] = { own: true, size: (avail[u.id] && sizeFor(inputs[u.id].value, avail[u.id])) || SIZES[SIZES.length - 1] };
+        if (u.id === state.unitId) plans[u.id] = { own: true, size: (avail[u.id] && sizeFor(inputs[u.id].value, avail[u.id])) || squeeze(inputs[u.id].value, avail[u.id]) };
         else plans[u.id] = has ? plan(u, r[u.id], avail[u.id]) : { text: '', size: 0 };
       });
       D.groups.forEach(function (g) {
@@ -151,7 +163,7 @@
         var cell = el.closest('.cell');
         cell.classList.toggle('src', u.id === state.unitId);
         if (!p.own) { el.value = p.text; cell.classList.remove('invalid'); }
-        el.style.fontSize = p.size ? p.size + 'px' : '';
+        setSize(el, p.size);
       });
       var refer = $('refer');
       if (refer) refer.classList.remove('bad');
