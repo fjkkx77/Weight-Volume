@@ -158,6 +158,12 @@ button, select { font: inherit; color: inherit; touch-action: manipulation; }
   transform: translateY(-3px) rotate(45deg); transition: transform .2s; }
 .title-btn[aria-expanded="true"] .chev { transform: translateY(2px) rotate(-135deg); }
 .title-btn:active { opacity: .6; }
+/* 主页按钮：标题左边的小房子（2026-10-09 用户要的），点了回目录；和右边的归零按钮同一套样式 */
+.btn-home { text-decoration: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+/* 斤两页的标题行还有「按水」选择框，320～375 宽放不下主页按钮（下拉框按最长的「按食用油」定宽），
+   所以斤两页把它放进顶上那条吸顶导航的最左边：仍是页面左上角，滑下去也一直在 */
+.section-nav .btn-home { background: transparent; border-radius: 10px; }
+.section-nav .btn-home:active { background: var(--press); }
 .switch-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 95;
   background: var(--card); border-radius: 16px; padding: 8px; border: 1px solid var(--line);
   box-shadow: 0 16px 40px rgba(0, 0, 0, .18);

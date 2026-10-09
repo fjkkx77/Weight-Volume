@@ -56,6 +56,18 @@ async function switcherChecks(c, tag, W, id) {
   ok(`${tag} 菜单列出目录 + 全部 ${PAGES.length} 个换算`, m.n === PAGES.length + 1 && m.home === './', m);
   ok(`${tag} 菜单标出当前页`, m.cur.length === 1 && m.cur[0] === PAGES.find(p => p.id === id).file, m.cur);
   ok(`${tag} 菜单不出屏、每项 ≥44px、名字不截断`, m.left >= 0 && m.right <= W && m.small === 0 && m.cut === 0, m);
+  // 主页按钮：页面左上角那一行的最左、≥44px、指向目录
+  //   换算页在标题行（.head）；斤两页标题行放不下（有「按水」选择框），放在顶上吸顶导航里
+  const hb = await c.ev(`(()=>{const a=document.getElementById('btnHome');if(!a)return null;const r=a.getBoundingClientRect();const row=a.parentElement;return {first:row.firstElementChild===a,row:row.id||row.className,l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),href:a.getAttribute('href')}})()`);
+  const wantRow = id === 'weight' ? 'sectionNav' : 'head';
+  ok(`${tag} 主页按钮在左上角那一行最左、≥44px、指向目录`, !!hb && hb.first && hb.row === wantRow && hb.w >= 44 && hb.h >= 44 && hb.href === './' && hb.l < 40, hb);
+  // 标题行：标题不被挤得截断（看箭头是否超出标题区）；行里各元素都在卡片里、互不重叠、同一行
+  const hd = await c.ev(`(()=>{const h=document.querySelector('#cardConvert .head');const card=document.getElementById('cardConvert').getBoundingClientRect();const kids=[...h.children].filter(e=>e.id!=='switchMenu').map(e=>{const r=e.getBoundingClientRect();return {id:e.id||e.tagName,l:Math.round(r.left),r:Math.round(r.right),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height)}});const t1=document.getElementById('ttlConvert'),tb=document.getElementById('btnSwitch');return {kids,cardL:Math.round(card.left),cardR:Math.round(card.right),titleCut:tb.querySelector('.chev').getBoundingClientRect().right>t1.getBoundingClientRect().right+1}})()`);
+  const k0 = hd.kids[0];
+  const inCard = hd.kids.every(k => k.l >= hd.cardL && k.r <= hd.cardR);
+  const noOverlap = hd.kids.every((k, i) => i === 0 || k.l >= hd.kids[i - 1].r);
+  const oneRow = hd.kids.every(k => Math.abs(k.t + k.h / 2 - (k0.t + k0.h / 2)) <= 2);
+  ok(`${tag} 标题行不截断、不重叠、不出卡片、同一行`, !hd.titleCut && inCard && noOverlap && oneRow, hd);
   await c.ev(`document.body.click()`);
   await sleep(100);
   ok(`${tag} 点外面收起菜单`, await c.ev(`document.getElementById('switchMenu').hidden && document.getElementById('btnSwitch').getAttribute('aria-expanded')==='false'`));
@@ -217,27 +229,54 @@ async function runCollection(W, H, dark) {
       ok(`${t2} 归零清空`, (await val(c, k0)) === '' && (await c.ev(`document.querySelectorAll('.cell.src').length`)) === 0);
       ok(`${t2} 无 JS 报错`, c.errors.length === 0, c.errors);
     }
-    // 菜单里点别的换算能跳过去，点「全部换算」回目录
-    await c.ev(`document.getElementById('btnSwitch').click()`);
-    await sleep(150);
+    // ---------- 页面之间跳转（2026-10-09 用户：开了几层还得一层层返回 → 切换不叠历史 + 主页按钮） ----------
+    const where = () => c.ev('document.title');
+    const HUB_T = '换算合集';
+    // 找不到菜单（比如上一步没回到预期的页）就记一条失败，不让整套测试崩掉
+    const menuGo = async sel => {
+      const has = await c.ev(`!!document.getElementById('btnSwitch')`);
+      if (!has) { ok(`${tag} 打开菜单（当前页 ${await c.ev('location.pathname')} 没有菜单）`, false); return; }
+      await c.ev(`document.getElementById('btnSwitch').click()`); await sleep(150); await c.ev(`document.querySelector('#switchMenu ${sel}').click()`); await sleep(800);
+    };
+    // 目录 → 长度 → 菜单切面积 → 菜单切温度：历史条数不变，左滑（返回）一次就回目录
+    await c.goto(URL);
+    await c.ev(`document.querySelector('.tile[data-page=length]').click()`);
+    await sleep(800);
+    const h0 = await c.ev('history.length');
     // 离开页面那一刻菜单必须已经收起：Safari 拿这一刻的画面做左滑返回的快照（用户真机截图：返回时先闪出菜单）
     await c.ev(`window.addEventListener('beforeunload', () => sessionStorage.setItem('menuAtLeave', String(document.getElementById('switchMenu').hidden)))`);
-    await c.ev(`document.querySelector('#switchMenu a[href="area.html"]').click()`);
-    await sleep(800);
+    await menuGo('a[href="area.html"]');
     ok(`${tag} 菜单跳到面积换算`, (await c.ev('location.pathname')).endsWith('/area.html'));
     ok(`${tag} 跳走时菜单已收起（返回快照里不带菜单）`, (await c.ev(`sessionStorage.getItem('menuAtLeave')`)) === 'true', await c.ev(`sessionStorage.getItem('menuAtLeave')`));
-    // 返回上一页（bfcache 恢复）后菜单也是收起的
+    await menuGo('a[href="temperature.html"]');
+    const h1 = await c.ev('history.length');
+    ok(`${tag} 菜单切换不叠历史（目录→长度→面积→温度）`, (await c.ev('location.pathname')).endsWith('/temperature.html') && h1 === h0, { h0, h1 });
     await c.ev('history.back()');
     await sleep(800);
-    const lastFile = PAGES.filter(x => x.dataVar).slice(-1)[0].file;   // 循环里最后打开的那页
-    ok(`${tag} 返回后菜单是收起的`, (await c.ev(`location.pathname.endsWith('/${lastFile}') && document.getElementById('switchMenu').hidden`)) === true, await c.ev('location.pathname'));
-    await c.ev(`history.forward()`);
+    ok(`${tag} 切了两次后返回一次就回目录`, (await where()) === HUB_T, await where());
+    // 再前进回温度：bfcache 恢复的页面菜单是收起的
+    await c.ev('history.forward()');
     await sleep(800);
-    await c.ev(`document.getElementById('btnSwitch').click()`);
-    await sleep(150);
-    await c.ev(`document.querySelector('#switchMenu a.home').click()`);
+    ok(`${tag} 前进回来菜单是收起的`, (await c.ev(`location.pathname.endsWith('/temperature.html') && document.getElementById('switchMenu').hidden`)) === true, await c.ev('location.pathname'));
+    // 主页按钮（从目录进来的）：退回目录，不新增一条——前进还能回到温度
+    await c.ev(`document.getElementById('btnHome').click()`);
     await sleep(800);
-    ok(`${tag} 菜单回到目录`, (await c.ev('document.title')) === '换算合集');
+    ok(`${tag} 主页按钮回到目录`, (await where()) === HUB_T, await where());
+    ok(`${tag} 主页按钮是退回目录（历史不多一条）`, (await c.ev('history.length')) === h1, { h1, now: await c.ev('history.length') });
+    await c.ev('history.forward()');
+    await sleep(800);
+    ok(`${tag} 回目录后前进还是温度`, (await c.ev('location.pathname')).endsWith('/temperature.html'));
+    // 菜单里的「全部换算」同样是退回目录
+    await menuGo('a.home');
+    ok(`${tag} 菜单回到目录`, (await where()) === HUB_T && (await c.ev('history.length')) === h1, { t: await where(), len: await c.ev('history.length') });
+    // 直接打开的换算页（书签 / 别人发的链接，底下没有目录）：主页按钮正常跳到目录，返回还能回来
+    await c.goto(URL + 'force.html');
+    await c.ev(`document.getElementById('btnHome').click()`);
+    await sleep(800);
+    ok(`${tag} 直接打开的页：主页按钮到目录`, (await where()) === HUB_T, await where());
+    await c.ev('history.back()');
+    await sleep(800);
+    ok(`${tag} 直接打开的页：从目录返回还能回到原页`, (await c.ev('location.pathname')).endsWith('/force.html'));
     ok(`${tag} 合集各页无 JS 报错`, c.errors.length === 0, c.errors);
   } finally {
     c.close();

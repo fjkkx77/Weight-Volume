@@ -10,6 +10,8 @@ const ROOT = path.join(__dirname, '..');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const RESET_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>';
+// 主页按钮：标题左边的小房子，点了回目录（行为在 nav.js 的 goHome）。斤两页是手写的，改这里要同步改 weight.html
+const HOME_BTN = '<a class="btn-icon btn-home" id="btnHome" href="./" aria-label="回到全部换算"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9v11h14V9"></path><path d="M10 20v-6h4v6"></path></svg></a>';
 const PTR = `<div id="ptr-indicator" aria-hidden="true">
   <svg class="ptr-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
   <svg class="ptr-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
@@ -38,6 +40,7 @@ function converterPage(p) {
 <div class="container">
   <section class="card" id="cardConvert" aria-labelledby="ttlConvert">
     <div class="head">
+      ${HOME_BTN}
       <h1 id="ttlConvert"><button type="button" class="title-btn" id="btnSwitch" aria-haspopup="true" aria-expanded="false">${esc(p.title)}<span class="chev" aria-hidden="true"></span></button></h1>
 ${p.signed ? '      <button type="button" class="btn-icon btn-sign" id="btnSign" aria-label="正负号（输入零下温度）">±</button>\n' : ''}      <button type="button" class="btn-icon" id="btnReset" aria-label="归零">
         ${RESET_SVG}
