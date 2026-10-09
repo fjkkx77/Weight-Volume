@@ -105,8 +105,12 @@ async function runCollection(W, H, dark) {
 
     for (const p of PAGES.filter(x => x.dataVar)) {
       const t2 = `${tag} ${p.id}`;
+      // 先在当前页（同一个站）关掉货币页联网，再打开货币页：否则第一次打开时发出的实时请求
+      //   可能在清缓存之后才回来，把新汇率写回缓存（2026-10-09 CI 能连上汇率接口时踩到，1 美元变成当天的 6.7331）
+      const prep = `sessionStorage.clear(); localStorage.clear()${p.id === 'currency' ? "; localStorage.setItem('wv.currency.nolive','1')" : ''}`;
+      await c.ev(prep);
       await c.goto(URL + p.file);
-      await c.ev(`sessionStorage.clear(); localStorage.clear()${p.id === 'currency' ? "; localStorage.setItem('wv.currency.nolive','1')" : ''}`);
+      await c.ev(prep);
       await c.goto(URL + p.file);
       const n = await c.ev(`window.${p.dataVar}.units.length`);
       ok(`${t2} 标题`, (await c.ev('document.title')) === p.title);
