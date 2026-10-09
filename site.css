@@ -180,15 +180,24 @@ button, select { font: inherit; color: inherit; touch-action: manipulation; }
 .hub-head { padding: 6px 2px 2px; }
 .hub-head h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
 .hub-head p { font-size: 14px; color: var(--text-2); margin-top: 2px; }
-.hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.tile { background: var(--card); border-radius: 20px; padding: 14px; box-shadow: 0 8px 24px var(--shadow);
-  color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 8px; min-height: 112px;
-  transition: transform .15s; }
+/* 3 列：12 个换算正好 4 整行（用户有强迫症，不留空格子；测试会拦条数不是 3 的倍数） */
+.hub-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tile { background: var(--card); border-radius: 18px; padding: 12px 10px; box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 6px; min-height: 118px;
+  min-width: 0; transition: transform .15s; }
 .tile:active { transform: scale(.97); }
-.tile .glyph { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-  background: rgba(var(--accent-rgb), .12); color: var(--accent); font-size: 21px; font-weight: 800; }
-.tile b { font-size: 17px; font-weight: 800; }
-.tile small { font-size: 13px; color: var(--text-2); line-height: 1.35; }
+.tile .glyph { width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), .12); color: var(--accent); font-size: 19px; font-weight: 800; flex: none; }
+.tile b { font-size: 16px; font-weight: 800; white-space: nowrap; }
+/* 代表单位只占一行：折行会把「密位」拆成「密 / 位」、格子之间一行两行不齐（2026-10-09 截图）。
+   390 宽下全都放得下（测试会拦），更窄的屏才用省略号 */
+.tile small { font-size: 12px; color: var(--text-2); line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 359px) { .hub-grid { gap: 8px; } .tile { padding: 10px 8px; } .tile b { font-size: 15px; } }
 
 /* 输入不成立（低于绝对零度）时，提示行和标红的格子同色 */
 .refer.bad { color: var(--invalid); }
+
+/* 货币页卡片底部：汇率是哪天的、从哪来（不是银行牌价） */
+.live-note { margin-top: 12px; line-height: 1.5; }
+.live-note b { color: var(--text); font-weight: 700; }

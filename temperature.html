@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="description" content="摄氏度、华氏度、开尔文、兰氏度等温度单位换算">
 <title>温度换算</title>
-<link rel="stylesheet" href="site.css?v=cd5648da">
+<link rel="stylesheet" href="site.css?v=74f3b76d">
 </head>
 <body>
 <!-- 本文件由 tools/build-pages.cjs 按 pages.js 生成，别手改 -->
@@ -35,9 +35,9 @@
 </div>
 <div id="ptr-tip" hidden></div>
 
-<script src="core.js?v=900d393e"></script>
-<script src="pages.js?v=e4de451c"></script>
-<script src="nav.js?v=90d3cf5c"></script>
+<script src="core.js?v=be0b156e"></script>
+<script src="pages.js?v=3d2403b2"></script>
+<script src="nav.js?v=b7c9ccdb"></script>
 <script src="data-temperature.js?v=4ba6362c"></script>
 <script src="pull-to-refresh.js?v=3e961870"></script>
 <script src="grid.js?v=142a94eb"></script>
@@ -46,8 +46,8 @@
   'use strict';
   var D = window.WV_TEMPERATURE, conv = window.WVCore.makeConverter(D.units);
   var menu = window.WVNav.mountSwitcher('temperature');
-  window.WVGrid.mount({
-    data: D, key: 'temperature', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll,
+  var grid = window.WVGrid.mount({
+    data: D, key: 'temperature', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll, texts: D.texts || null,
     validate: D.validate ? function (v, id) { return D.validate(conv.toBase(v, id)); } : null,
     blocked: menu.isOpen
   });

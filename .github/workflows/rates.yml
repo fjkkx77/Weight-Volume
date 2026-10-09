@@ -1,0 +1,43 @@
+# 每个工作日更新货币页的汇率快照 rates.js（页面打不开汇率接口时就用它）
+#   中间价北京时间 9:15 公布，这里 9:45 跑（cron 用 UTC：01:45）；也可以在 Actions 页手动点 Run workflow
+# 注意：
+#   - 用 GITHUB_TOKEN 推送不会触发别的工作流（含 Pages 的自动发布），所以最后一步显式请求一次 Pages 构建
+#   - 公开仓库连续 60 天没有提交，GitHub 会自动停掉定时任务；停了就去 Actions 页重新启用
+#     （页面本身每次打开都会直接拉实时汇率，快照只是兜底，停了也不至于没法用）
+name: rates
+on:
+  schedule:
+    - cron: '45 1 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: 拉最新汇率
+        run: node tools/fetch-rates.cjs
+      - name: 更新指纹并自检
+        run: |
+          node tools/stamp.cjs
+          node --test "tests/*.test.cjs"
+      - name: 有变化就提交
+        id: commit
+        run: |
+          if git diff --quiet; then echo "changed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rates.js currency.html
+          git commit -m "chore: 更新汇率快照"
+          git push
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+      - name: 请求 Pages 重新发布
+        if: steps.commit.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"

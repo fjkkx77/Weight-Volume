@@ -20,6 +20,8 @@ test('页面登记表：每页都有数据文件、文件名、名字，id 不�
     if (p.dataVar) assert.ok(fs.existsSync(path.join(__dirname, '..', `data-${p.id}.js`)), `${p.id} 缺 data-${p.id}.js`);
   }
   assert.equal(PAGES[0].id, 'weight', '斤两换算排第一个');
+  assert.equal(PAGES.length % 3, 0, '目录是 3 列，条数要是 3 的倍数（不留空格子）');
+  assert.deepEqual(PAGES.map(p => p.id).sort(), ['angle', 'area', 'currency', 'energy', 'force', 'fuel', 'length', 'power', 'pressure', 'speed', 'temperature', 'weight'], '用户要的 12 种换算');
 });
 
 test('每张单位表：出处、等级、排版规则（同斤两页）', () => {
@@ -46,7 +48,8 @@ test('每张单位表：出处、等级、排版规则（同斤两页）', () =>
     if (!D.noOrder) for (const g of D.groups) {
       const us = D.units.filter(u => u.group === g.id);
       for (let i = 0; i < us.length; i += 3) for (let k = 1; k < 3; k++) {
-        assert.ok(us[i + k].toBase > us[i + k - 1].toBase, `${page.id}/${g.name}：${us[i + k - 1].label} 不比 ${us[i + k].label} 小`);
+        // 相等的并列（毫巴 = 百帕）
+        assert.ok(us[i + k].toBase >= us[i + k - 1].toBase, `${page.id}/${g.name}：${us[i + k - 1].label} 比 ${us[i + k].label} 大`);
       }
     }
     // 首屏至少一行、最多 21 格（再多 390×844 一屏放不下，斤两页实测）

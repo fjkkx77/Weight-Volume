@@ -49,7 +49,7 @@ ${p.signed ? '      <button type="button" class="btn-icon btn-sign" id="btnSign"
       <button type="button" class="btn-more" id="btnMore" aria-expanded="false" aria-controls="more"><span id="moreText">更多单位</span><span class="chev" aria-hidden="true"></span></button>
     </div>
     <div id="more" class="units" hidden></div>
-  </section>
+${p.live ? '    <p class="note live-note" id="liveNote" aria-live="polite"></p>\n' : ''}  </section>
 </div>
 
 ${PTR}
@@ -57,20 +57,20 @@ ${PTR}
 <script src="core.js"></script>
 <script src="pages.js"></script>
 <script src="nav.js"></script>
-<script src="data-${p.id}.js"></script>
+${(p.before || []).map(f => `<script src="${f}"></script>\n`).join('')}<script src="data-${p.id}.js"></script>
 <script src="pull-to-refresh.js"></script>
 <script src="grid.js"></script>
-<script>
+${p.live ? `<script src="${p.live}"></script>\n` : ''}<script>
 (function () {
   'use strict';
   var D = window.${p.dataVar}, conv = window.WVCore.makeConverter(D.units);
   var menu = window.WVNav.mountSwitcher('${p.id}');
-  window.WVGrid.mount({
-    data: D, key: '${p.id}', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll,
+  var grid = window.WVGrid.mount({
+    data: D, key: '${p.id}', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll, texts: D.texts || null,
     validate: D.validate ? function (v, id) { return D.validate(conv.toBase(v, id)); } : null,
     blocked: menu.isOpen
   });
-})();
+${p.live ? '  window.WVLive.start(grid, D);   // 页面加载后再拉实时数据（货币：最新汇率）\n' : ''}})();
 </script>
 </body>
 </html>

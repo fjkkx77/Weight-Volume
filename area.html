@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="description" content="平方米、亩、公顷、平方千米、坪、英亩、平方英尺等面积单位换算">
 <title>面积换算</title>
-<link rel="stylesheet" href="site.css?v=cd5648da">
+<link rel="stylesheet" href="site.css?v=74f3b76d">
 </head>
 <body>
 <!-- 本文件由 tools/build-pages.cjs 按 pages.js 生成，别手改 -->
@@ -34,9 +34,9 @@
 </div>
 <div id="ptr-tip" hidden></div>
 
-<script src="core.js?v=900d393e"></script>
-<script src="pages.js?v=e4de451c"></script>
-<script src="nav.js?v=90d3cf5c"></script>
+<script src="core.js?v=be0b156e"></script>
+<script src="pages.js?v=3d2403b2"></script>
+<script src="nav.js?v=b7c9ccdb"></script>
 <script src="data-area.js?v=d207027f"></script>
 <script src="pull-to-refresh.js?v=3e961870"></script>
 <script src="grid.js?v=142a94eb"></script>
@@ -45,8 +45,8 @@
   'use strict';
   var D = window.WV_AREA, conv = window.WVCore.makeConverter(D.units);
   var menu = window.WVNav.mountSwitcher('area');
-  window.WVGrid.mount({
-    data: D, key: 'area', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll,
+  var grid = window.WVGrid.mount({
+    data: D, key: 'area', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll, texts: D.texts || null,
     validate: D.validate ? function (v, id) { return D.validate(conv.toBase(v, id)); } : null,
     blocked: menu.isOpen
   });

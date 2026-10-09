@@ -24,6 +24,14 @@ test('每个页面的 js / css 引用都带内容指纹且是最新的', () => {
   for (const f of files) for (const m of read(f).matchAll(RE)) assert.ok(fs.existsSync(path.join(ROOT, m[2])), `${f} 引用了不存在的 ${m[2]}`);
 });
 
+// 「生成结果和文件一致」只能说明两边一样，说明不了代码对（2026-10-09：模板少个 } 时 11 页全挂，上面那条照样绿）
+test('每个页面里的内联脚本语法都对', () => {
+  for (const f of htmlFiles()) {
+    const scripts = [...read(f).matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+    for (const js of scripts) assert.doesNotThrow(() => new Function(js), `${f} 的内联脚本有语法错误`);
+  }
+});
+
 test('生成的页面和 pages.js 对得上', () => {
   for (const [name, html] of Object.entries(build())) {
     assert.ok(fs.existsSync(path.join(ROOT, name)), `${name} 还没生成：跑 node tools/build-pages.cjs`);

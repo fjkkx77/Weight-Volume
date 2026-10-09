@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta name="description" content="米、厘米、尺、寸、里、英寸、英尺、英里、海里、光年等长度单位换算">
-<title>长度换算</title>
+<meta name="description" content="人民币、美元、欧元、港币、日元、英镑、新台币等 33 种货币换算，按中国外汇交易中心人民币汇率中间价">
+<title>货币换算</title>
 <link rel="stylesheet" href="site.css?v=74f3b76d">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="container">
   <section class="card" id="cardConvert" aria-labelledby="ttlConvert">
     <div class="head">
-      <h1 id="ttlConvert"><button type="button" class="title-btn" id="btnSwitch" aria-haspopup="true" aria-expanded="false">长度换算<span class="chev" aria-hidden="true"></span></button></h1>
+      <h1 id="ttlConvert"><button type="button" class="title-btn" id="btnSwitch" aria-haspopup="true" aria-expanded="false">货币换算<span class="chev" aria-hidden="true"></span></button></h1>
       <button type="button" class="btn-icon" id="btnReset" aria-label="归零">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
       </button>
@@ -25,6 +25,7 @@
       <button type="button" class="btn-more" id="btnMore" aria-expanded="false" aria-controls="more"><span id="moreText">更多单位</span><span class="chev" aria-hidden="true"></span></button>
     </div>
     <div id="more" class="units" hidden></div>
+    <p class="note live-note" id="liveNote" aria-live="polite"></p>
   </section>
 </div>
 
@@ -37,19 +38,22 @@
 <script src="core.js?v=be0b156e"></script>
 <script src="pages.js?v=3d2403b2"></script>
 <script src="nav.js?v=b7c9ccdb"></script>
-<script src="data-length.js?v=07eb5d76"></script>
+<script src="rates.js?v=ab8adc46"></script>
+<script src="data-currency.js?v=223d5588"></script>
 <script src="pull-to-refresh.js?v=3e961870"></script>
 <script src="grid.js?v=142a94eb"></script>
+<script src="currency.js?v=d5c1c31f"></script>
 <script>
 (function () {
   'use strict';
-  var D = window.WV_LENGTH, conv = window.WVCore.makeConverter(D.units);
-  var menu = window.WVNav.mountSwitcher('length');
+  var D = window.WV_CURRENCY, conv = window.WVCore.makeConverter(D.units);
+  var menu = window.WVNav.mountSwitcher('currency');
   var grid = window.WVGrid.mount({
-    data: D, key: 'length', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll, texts: D.texts || null,
+    data: D, key: 'currency', signed: !!D.signed, tinySci: !!D.tinySci, convert: conv.convertAll, texts: D.texts || null,
     validate: D.validate ? function (v, id) { return D.validate(conv.toBase(v, id)); } : null,
     blocked: menu.isOpen
   });
+  window.WVLive.start(grid, D);   // 页面加载后再拉实时数据（货币：最新汇率）
 })();
 </script>
 </body>
