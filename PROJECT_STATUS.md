@@ -7,7 +7,7 @@
 - 用户 2026-10-08 要求：①补硬币；②扩成换算合集，每种换算一个页面、主界面链接跳转。用户选定：硬币收、标非官方；**网址首页变目录**（斤两页挪到 `weight.html`，老书签落到目录）；货币用人民币中间价为主；分两批做；温度第二行收列氏 / 罗氏两个历史单位（选 A）。
 - **第一批**：目录 `index.html` + `weight.html`（加 6 枚硬币）+ `length.html` / `area.html` / `temperature.html`。
 - **第二批（同日上线）**：速度、角度、油耗、能量、功率、压力、力、货币，共 12 页；目录改 3 列 4 行。
-- **货币**：`rates.js` 快照（`tools/fetch-rates.cjs` 生成，`.github/workflows/rates.yml` 每个工作日北京时间 9:45 更新并请求 Pages 重新发布）→ 页面打开后 `currency.js` 再拉 Frankfurter 实时数据。数据源：CFETS 中间价 25 种 + ECB 6 种 + AMCM 新台币，共 33 种。**必须用欧元基准原始数自己折算**（`base=CNY` 会多舍入一次，港币差到第 5 位）；已与中国外汇交易中心官网核对一致。只显示 5 位有效数字。测试里 `localStorage['wv.currency.nolive']='1'` 关掉联网，实时路径用假 fetch 测。**待观察**：定时任务第一次真跑是否成功、bot 推送后 Pages 是否真的重新发布；公开仓库 60 天无提交会停掉定时任务。
+- **货币**：`rates.js` 快照（`tools/fetch-rates.cjs` 生成，`.github/workflows/rates.yml` 每个工作日北京时间 9:45、15:45 各跑一次（Frankfurter 转发中间价有延迟），有变化就提交并请求 Pages 重新发布）→ 页面打开后 `currency.js` 再拉 Frankfurter 实时数据。数据源：CFETS 中间价 25 种 + ECB 6 种 + AMCM 新台币，共 33 种。**必须用欧元基准原始数自己折算**（`base=CNY` 会多舍入一次，港币差到第 5 位）；已与中国外汇交易中心官网核对一致。只显示 5 位有效数字。测试里 `localStorage['wv.currency.nolive']='1'` 关掉联网，实时路径用假 fetch 测。**待观察**：定时任务第一次真跑是否成功、bot 推送后 Pages 是否真的重新发布；公开仓库 60 天无提交会停掉定时任务。
 - 油耗是倒数关系（`to` / `from`），输入 0 标红；没有「更多」单位的页（力）不显示「更多」按钮。
 - 标题切换菜单：点菜单里的链接**先收起、等两帧再跳**（Safari 左滑返回用离开时的快照，用户真机截图发现菜单残留），`pagehide` / `pageshow` 也各收一次。
 - 结构：`pages.js` 登记表 → `tools/build-pages.cjs` 生成目录和换算页（**生成的页面别手改**，测试会拦）；共用 `core.js`（纯函数）+ `grid.js`（网格引擎，从斤两页内联脚本原样抽出）+ `nav.js`（标题切换菜单）+ `site.css`。斤两页手写，只保留它独有的物质 / 物品卡 / 吸顶导航。

@@ -27,7 +27,7 @@
 | `data.js` / `convert.js` | 斤两页的数据和计算（物质密度、斤两组合、物品推荐） |
 | `data-<id>.js`（长度、面积、温度、速度、角度、油耗、能量、功率、压力、力、货币） | 各换算页的单位表，**每条都带出处和可信度** |
 | `currency.js` | 货币页：汇率数据源、合并算法、打开页面后拉实时汇率 |
-| `rates.js` | 汇率快照（**生成的**，别手改），`tools/fetch-rates.cjs` 写；GitHub Actions 每个工作日 9:45 自动更新（`.github/workflows/rates.yml`） |
+| `rates.js` | 汇率快照（**生成的**，别手改），`tools/fetch-rates.cjs` 写；GitHub Actions 每个工作日 9:45、15:45 自动更新（`.github/workflows/rates.yml`） |
 | `pull-to-refresh.js` | 下拉刷新组件，原样复用，参数不要改 |
 | `tools/stamp.cjs` | 给所有页面引用的 js / css 打内容指纹（`?v=`），**改完任何 js / css 都要跑一次** |
 | `tests/convert.test.cjs` | 斤两页的计算与数据测试 |
