@@ -45,7 +45,12 @@
         return '<div class="cell" data-unit="' + u.id + '"><label for="u_' + u.id + '">' + esc(u.label) + '</label>' +
           (u.cw ? '<div class="vrow">' + input + '<span class="cw" aria-hidden="true">' + esc(u.cw) + '</span></div>' : input) + '</div>';
       }).join('');
-      return '<div class="group" data-group="' + g.id + '"><div class="cap"><span>' + esc(g.name) + '</span>' +
+      // 分组标题分两档：组名粗黑（.gn），物品组「 · 」后面的规格退成灰色细字（.gs）。
+      // 换算区的「市制 · 公制」是两个并列的组名，整条都算组名（2026-10-16 用户在对比图里选的 B）
+      var cut = g.tier === 'items' ? g.name.indexOf(' · ') : -1;
+      var title = cut > 0 ? '<span class="gn">' + esc(g.name.slice(0, cut)) + '</span><span class="gs">' + esc(g.name.slice(cut + 3)) + '</span>'
+        : '<span class="gn">' + esc(g.name) + '</span>';
+      return '<div class="group" data-group="' + g.id + '"><div class="cap"><span>' + title + '</span>' +
         (g.composite ? '<b data-comp="' + g.id + '"></b>' : '') + (g.note ? '<i>' + esc(g.note) + '</i>' : '') +
         '</div><div class="grid">' + cells + '</div></div>';
     }).join(''); }

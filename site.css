@@ -68,7 +68,11 @@ button, select { font: inherit; color: inherit; touch-action: manipulation; }
 /* 单位：每组一个 3 列网格，标签收进格子里（2026-10-07 用户在 A/B 对比图里选的 B） */
 .group + .group { margin-top: 10px; }
 .cap { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
-  font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 2px 5px; }
+  font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 2px 5px; line-height: 18px; }
+/* 分组标题要比格子里的单位名（12.5px 灰）高一档，否则整页看着一样平（2026-10-16 用户反馈）；规格说明退后。
+   行高钉成 18px：组名加大后若按字体默认行高，首屏第 21 格只剩 1px 余量（见 PROJECT_STATUS「首屏只能放 21 个」） */
+.cap .gn { font-size: 15px; font-weight: 800; color: var(--text); }
+.cap .gs { font-size: 12.5px; font-weight: 500; color: var(--text-2); margin-left: 8px; }
 .cap b { color: var(--accent); font-size: 13px; white-space: nowrap; }
 .cap i { font-style: normal; color: var(--warn); white-space: nowrap; }
 .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
