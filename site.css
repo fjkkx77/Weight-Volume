@@ -217,3 +217,17 @@ button, select { font: inherit; color: inherit; touch-action: manipulation; }
 /* 货币页卡片底部：汇率是哪天的、从哪来（不是银行牌价） */
 .live-note { margin-top: 12px; line-height: 1.5; }
 .live-note b { color: var(--text); font-weight: 700; }
+
+/* 卡片标题行吸顶（2026-10-17）：用户说往下翻以后「回到全部换算」「标题切换」「归零」被滚走了，还得滑回顶上找。
+   不新加一条栏（换算区「一屏看全」的余量只剩 18px），而是让卡片自己的标题行在这张卡片范围内吸顶：
+   静止时位置一点不变（负外边距 + 同样的内边距抵消），往下滚时贴在屏幕顶上，滚过这张卡片就跟着走。
+   斤两页上面已经有吸顶导航（8px + 52px 高），标题行贴在导航下面 */
+.card { --cp-y: 16px; --cp-x: 14px; }
+@media (max-width: 359px) { .card { --cp-y: 14px; --cp-x: 10px; } }
+.card > .head { position: sticky; top: env(safe-area-inset-top); z-index: 80;
+  margin: calc(-1 * var(--cp-y)) calc(-1 * var(--cp-x)) 12px; padding: var(--cp-y) var(--cp-x) 0;
+  background: var(--card); border-radius: 20px 20px 0 0; }
+/* 刘海那一截（页面顶上的安全区）：吸住时格子会从标题行上面滚过去，用页面底色挡住（同 .section-nav::before） */
+.card > .head::before { content: ""; position: absolute; left: calc(-1 * var(--gutter)); right: calc(-1 * var(--gutter));
+  bottom: 100%; height: env(safe-area-inset-top); background: var(--bg); pointer-events: none; }
+.section-nav ~ .card > .head { top: calc(60px + env(safe-area-inset-top)); }
