@@ -92,10 +92,10 @@
       if (good) go(); else { if (ac) ac.abort(); fail(); }
     }
     timer = setTimeout(function () { finish(false); }, ms || SAFE_RELOAD_MS);
-    Promise.all(urls.map(function (u) {
-      // 正文也要读完才算拿到（响应头先到、正文卡住也是卡住）
+    Promise.all(urls.map(function (u, i) {
+      // 正文也要读完才算拿到（响应头先到、正文卡住也是卡住）；页面本身要回 2xx 才刷（回错误页就别跳过去），css/js 只要服务器有回应就算网络通（某个文件本来就 404 的话刷新后也一样缺，不能因此永远说「网络不好」）
       return fetch(u, { cache: 'no-cache', signal: ac ? ac.signal : undefined })
-        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
+        .then(function (r) { if (i === 0 && !r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
     })).then(function () { finish(true); }, function () { finish(false); });
   }
   var NET_TIP = '网络不好，这次没刷新。稍后再拉一次。';
